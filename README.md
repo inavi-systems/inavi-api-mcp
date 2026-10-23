@@ -20,23 +20,97 @@ API Key 발급은 [이 곳](https://mapsapi.inavisys.com/mcp-intro#how-to-use)�
 
 ## 빠른 시작
 
+Claude Desktop, Cursor, VS Code, Claude Code, Codex, Windsurf 등 다양한 MCP 호스트에서 사용할 수 있습니다.
+
 > **사전 요구사항:** Node.js 22 이상이 설치되어 있어야 합니다 (`node -v`로 확인).
 
-아래 **서버 설정**을 사용 중인 도구의 **설정 경로**에 추가하고, `발급받은_API_Key`를 실제 API Key로 바꾼 뒤
+[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=inavi-maps-api&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBpbmF2aS1tYXBzL2FwaS1tY3Atc2VydmVyIl0sImVudiI6eyJJTkFWSV9BUFBLRVkiOiJZT1VSX0FQSV9LRVkifX0=)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=inavi-maps-api&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22inavi_appkey%22%2C%22description%22%3A%22INAVI%20Maps%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40inavi-maps%2Fapi-mcp-server%22%5D%2C%22env%22%3A%7B%22INAVI_APPKEY%22%3A%22%24%7Binput%3Ainavi_appkey%7D%22%7D%7D)
+
+**표준 설정** — 대부분의 MCP 호스트에서 그대로 사용할 수 있습니다. `YOUR_API_KEY`를 발급받은 API Key로 바꾼 뒤
 호스트를 재시작하세요.
 
-| 도구 | 설정 경로 | 서버 설정 |
-|---|---|---|
-| Claude Desktop | Windows `%APPDATA%\Claude\claude_desktop_config.json`<br>macOS `~/Library/Application Support/Claude/claude_desktop_config.json` | <pre>{<br>  "mcpServers": {<br>    "inavi-maps-api": {<br>      "command": "npx",<br>      "args": ["-y", "@inavi-maps/api-mcp-server"],<br>      "env": { "INAVI_APPKEY": "발급받은_API_Key" }<br>    }<br>  }<br>}</pre> |
-| Claude Code | `~/.claude.json` | <pre>{<br>  "mcpServers": {<br>    "inavi-maps-api": {<br>      "command": "npx",<br>      "args": ["-y", "@inavi-maps/api-mcp-server"],<br>      "env": { "INAVI_APPKEY": "발급받은_API_Key" }<br>    }<br>  }<br>}</pre> |
-| Cursor | `~/.cursor/mcp.json` | <pre>{<br>  "mcpServers": {<br>    "inavi-maps-api": {<br>      "command": "npx",<br>      "args": ["-y", "@inavi-maps/api-mcp-server"],<br>      "env": { "INAVI_APPKEY": "발급받은_API_Key" }<br>    }<br>  }<br>}</pre> |
-| VS Code | 사용자 프로필 | <pre>{<br>  "servers": {<br>    "inavi-maps-api": {<br>      "command": "npx",<br>      "args": ["-y", "@inavi-maps/api-mcp-server"],<br>      "env": { "INAVI_APPKEY": "발급받은_API_Key" }<br>    }<br>  }<br>}</pre> |
+```json
+{
+  "mcpServers": {
+    "inavi-maps-api": {
+      "command": "npx",
+      "args": ["-y", "@inavi-maps/api-mcp-server"],
+      "env": { "INAVI_APPKEY": "YOUR_API_KEY" }
+    }
+  }
+}
+```
 
-<sub>Claude Code는 명령 한 줄로도 등록할 수 있습니다.</sub>
+사용 중인 도구를 펼쳐 설정 위치를 확인하세요.
+
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+`claude_desktop_config.json`에 표준 설정을 추가합니다. ([공식 가이드](https://modelcontextprotocol.io/docs/develop/connect-local-servers))
+
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+위 **Install in Cursor** 버튼을 누르거나, `~/.cursor/mcp.json`에 표준 설정을 추가합니다. ([공식 가이드](https://cursor.com/docs/mcp))
+버튼으로 설치했다면 설정의 `YOUR_API_KEY`를 발급받은 API Key로 바꿔 주세요.
+
+</details>
+
+<details>
+<summary><b>VS Code</b></summary>
+
+위 **Install in VS Code** 버튼을 누르면 설치할 때 API Key를 입력하는 창이 뜹니다. 키는 설정 파일에 평문으로 남지 않습니다.
+또는 다음 명령을 실행합니다. ([공식 가이드](https://code.visualstudio.com/docs/agents/reference/mcp-configuration))
 
 ```bash
-claude mcp add --transport stdio inavi-maps-api --env INAVI_APPKEY=발급받은_API_Key -- npx -y @inavi-maps/api-mcp-server
+code --add-mcp '{"name":"inavi-maps-api","command":"npx","args":["-y","@inavi-maps/api-mcp-server"],"env":{"INAVI_APPKEY":"YOUR_API_KEY"}}'
 ```
+
+설정 파일을 직접 편집할 때는 최상위 키가 `mcpServers`가 아닌 `servers`입니다.
+
+</details>
+
+<details>
+<summary><b>Claude Code</b></summary>
+
+```bash
+claude mcp add --transport stdio inavi-maps-api --env INAVI_APPKEY=YOUR_API_KEY -- npx -y @inavi-maps/api-mcp-server
+```
+
+또는 `~/.claude.json`에 표준 설정을 추가합니다. ([공식 가이드](https://code.claude.com/docs/en/mcp))
+
+</details>
+
+<details>
+<summary><b>Codex</b></summary>
+
+```bash
+codex mcp add inavi-maps-api --env INAVI_APPKEY=YOUR_API_KEY -- npx -y @inavi-maps/api-mcp-server
+```
+
+또는 `~/.codex/config.toml`에 추가합니다 (TOML 형식). ([공식 가이드](https://developers.openai.com/codex/mcp))
+
+```toml
+[mcp_servers.inavi-maps-api]
+command = "npx"
+args = ["-y", "@inavi-maps/api-mcp-server"]
+env = { INAVI_APPKEY = "YOUR_API_KEY" }
+```
+
+</details>
+
+<details>
+<summary><b>Windsurf</b></summary>
+
+`~/.codeium/windsurf/mcp_config.json`에 표준 설정을 추가합니다. ([공식 가이드](https://docs.windsurf.com/windsurf/cascade/mcp))
+
+</details>
 
 > **지도는 MCP Apps를 지원하는 호스트에서만 보입니다.** Claude Desktop에서 확인했습니다.
 > 지원하지 않는 호스트에서도 도구 호출과 응답은 그대로 동작하고, 지도만 그려지지 않습니다.
