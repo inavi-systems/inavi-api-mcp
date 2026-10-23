@@ -1,749 +1,355 @@
 # CLAUDE.md
 
-이 저장소에서 작업할 때 참고할 지침입니다.
+This file provides guidance to Claude Code when working with code in this repository.
 
-## 프로젝트 개요
+## Project Overview
 
-iNavi Maps Open API를 호출하고, 그 결과를 MCP Apps로 대화 안의 동적 지도에 렌더링하는 stdio MCP 서버.
-일반적인 웹 서버가 아니라 **stdio 기반 MCP 서버**입니다 — `stdout`은 JSON-RPC 전용입니다.
+A **stdio MCP server** that calls the INAVI Maps Open API and renders the results as an
+interactive map inside the conversation through MCP Apps. It is not a web server —
+`stdout` carries JSON-RPC only.
 
-형제 프로젝트 `../inavi-maps-mcp-server`는 문서 제공형(API 명세·SDK 예제)이고, 이 프로젝트는 API 호출형입니다.
+The sibling project `../inavi-maps-mcp-server` serves documentation (API specs, SDK examples);
+this one calls the APIs.
 
-## 명령어
+## Commands
 
 ```bash
 npm run dev          # tsx watch
-npm run build        # 뷰(Vite) → public/ui/map.html, 그다음 서버(tsup) → dist/server.js
+npm run build        # view (Vite) → public/ui/map.html, then server (tsup) → dist/server.js
 npm test             # Vitest
 npm run lint         # ESLint
-npm run type-check   # tsconfig 3종 (서버 / 뷰 / 뷰-테스트)
-npm run inspect      # MCP Inspector (빌드 후)
+npm run type-check   # three tsconfigs (server / view / view tests)
+npm run check:pack   # the npm tarball must contain exactly the six expected files
+npm run inspect      # MCP Inspector (after build)
 ```
 
-`build:ui`가 `build:server`보다 **먼저** 실행돼야 합니다. 서버가 런타임에 `public/ui/map.html`을 읽습니다.
+`build:ui` must run before `build:server`: the server reads `public/ui/map.html` at runtime.
 
-## 아키텍처
+## Git and Release
+
+- **Commit messages, PR titles and PR bodies are written in English.** Use Conventional Commits
+  with a scope where it helps: `feat(ui): ...`, `fix(route): ...`, `ci(release): ...`, `docs(readme): ...`.
+  Imperative subject, no trailing period; the body explains why.
+- Work on a branch and merge into `main` through a PR. `ci.yml` runs type-check, lint, test,
+  build and `check:pack` on Node 22 and 24 for every PR.
+- **Releases run from GitHub Actions**, not the shell: `Actions > Release > Run workflow`.
+  `npm run release` only prints a pointer and exits 1. The workflow bumps the version, pushes the
+  version commit and tag `vX.Y.Z` straight to `main`, publishes to npm, waits for `latest`, and
+  creates a GitHub Release. `version-type: none` republishes the version already on `main`
+  (recovery path after a failure past the version push).
+- npm authenticates with **Trusted Publishing (OIDC)** registered for this repository and
+  `release.yml`. There is no npm token. Renaming the workflow file or the repository requires
+  re-registering the trusted publisher on npm.
+- Never publish source maps. The tarball is `dist/server.js`, `public/ui/map.html`, `README.md`,
+  `LICENSE`, `.env.example`, `package.json`.
+
+## Architecture
 
 ```
-src/         서버 (Node, ESM). tsup으로 dist/server.js 단일 파일 번들
-  server.ts    엔트리 — McpServer, 도구/리소스 등록, stdio 연결
-  config/      dotenv + zod 환경 변수 검증 (import 시점에 실행)
-  clients/     iNavi REST 호출 계층. API마다 메서드 하나로 1:1을 유지한다
-               inavi-http.client.ts가 공통 기반, inavi-error.ts가 실패에 행동 힌트를 붙인다
-               search · geocoding · spatial · route · optimize · matrix (API 카테고리와 같다)
-  tools/       도메인별 폴더 — <name>.tool.ts + schema/*.schema.ts. 모델에게 보이는 도구 11종
+src/         server (Node, ESM). Bundled by tsup into a single dist/server.js
+  server.ts    entry — McpServer, tool/resource registration, stdio transport
+  config/      dotenv + zod env validation (runs on import)
+  clients/     iNavi REST layer, one method per API
+               inavi-http.client.ts is the shared base; inavi-error.ts attaches action hints to failures
+               search · geocoding · spatial · route · optimize · matrix (same as the API categories)
+  tools/       one folder per domain — <name>.tool.ts + schema/*.schema.ts. 11 model-visible tools
                search/    search_places · search_nearby_category · find_entry_points
-               lookup/    lookup_category_code (API를 부르지 않는다. 표를 번들에 넣었다)
+               lookup/    lookup_category_code (no API call; the table is bundled)
                geocoding/ geocode_address · reverse_geocode
                spatial/   get_admin_boundary
-               route/     find_route · find_walking_route · kst-time.ts(시각 ↔ 한국 시각)
+               route/     find_route · find_walking_route · kst-time.ts (times ↔ Korea time)
                optimize/  optimize_waypoint_order
                matrix/    get_distance_matrix
-               common/    envelope.ts(봉투 통일) · split-coords.ts(좌표 절삭) ·
-                          drop-duplicates.ts(중복 필드 절삭) ·
-                          tool-result.ts(응답 조립) · schema/(공통 스키마 —
-                          waypoint-place.input.schema.ts가 경로 자리의 장소 정보)
-               app/       템플릿 전용 (visibility: ["app"] — 모델에게 감춰진다)
-  resources/   ui:// 리소스 등록 + CSP 선언
+               common/    envelope.ts · split-coords.ts · drop-duplicates.ts · tool-result.ts ·
+                          schema/ (shared schemas, incl. waypoint-place.input.schema.ts)
+               app/       template-only tools (visibility: ["app"], hidden from the model)
+  resources/   ui:// resource registration + CSP
   utils/       logger · paths · schema-dialect
 
-ui/          템플릿 (브라우저, ESM). Vite + vite-plugin-singlefile로 단일 HTML
-  map.html              지도 + 왼쪽 결과 패널(요약 · 결과 좁히기 · 결과 목록)
-  src/main.ts           App 연결. 도구 인자·결과·취소·정리 요청 수신
-  src/render-host.ts    조립 — 지도 생성 · 렌더러 분기 · 모드 관리 · 재호출 · 인터랙션 배선
-  src/styles.css
-
-  src/render/   결과 그리기. 공통 표현이 단일 출처다
-    result.ts           MapFeature·StatRow → 마커 · 정보창 · 목록 마크업
-    info-card.ts        정보창 카드 한 벌 (지도 위 정보창은 전부 이것)
-    pin.ts · cluster.ts 핀 모양 · 클러스터 풍선 그림 · 뭉치는 간격
-    search · geocode · reverse · route · boundary · entry-points · optimize · matrix
-                        응답을 읽어 MapFeature·StatRow로 옮기기만 한다
-    route-segments.ts   클릭 지점 → 경로 구간 판정
-    route-times.ts      경로 예측 시각 줄
-
-  src/host/     호스트·서버와 주고받기
-    app-instance.ts     템플릿이 공유하는 App 인스턴스
-    queries.ts          템플릿이 스스로 하는 조회 (전부 app.callServerTool)
-    tool-context.ts     도구 호출 인자 보관 → 검색 영역·경유지 도출
-    tool-result.ts      도구 결과 본문 읽기
-    restore-coords.ts   _meta로 온 좌표(경로·폴리곤)를 본문에 되꽂기
-    error-text.ts       실패 → 사용자 문구 (결과 코드로 고른다)
-    model-context.ts    템플릿이 한 일을 모델에게만 알리기
-    conversation.ts     sendMessage로 대화에 넘기기
-    display-mode.ts     전체화면 요청 (Optional이라 있을 때만 버튼을 만든다)
-
-  src/map/      지도 SDK와 지도 위 그림
-    inavi-loader.ts     get_map_config 호출 → SDK 동적 주입
-    inavi.d.ts          SDK 타입 (쓰는 표면만)
-    map-style.ts        지도 유형 · 야간 스타일
-    theme.ts            밝게 ↔ 어둡게. 바뀌면 지도 스타일까지 다시 그린다
-    map-colors.ts       지도에 칠하는 모든 색 (핀 · 영역 · 경계 · 교통 · 클러스터)
-    overlays.ts         검색 영역 원·폴리곤
-    fit-area.ts         화면을 맞출 대상 · 펼친 패널을 비키는 여백
-
-  src/panel/    ② 왼쪽 결과 패널
-    controls.ts         결과 좁히기 (장소/주소 전환 · 분류 필터)
-    pager.ts            목록 쪽 넘기기 (startposition)
-    result-detail.ts    목록 줄·지표 줄의 `상세` 펴고 접기
-    marker-link.ts      목록 ↔ 마커 잇기 (호버 · 클릭 이동)
-    poi-filter.ts       분류 필터 (서버도 모델도 안 부른다)
-
-  src/rail/     ①③ 지도 위 조작
-    map-rail.ts         조작 레일 (SDK 컨트롤 컨테이너에 끼운다)
-    research-button.ts  지도 아래 가운데 `현재 지도에서 재검색` 알약
-    route-options.ts    경로 옵션 줄 (자동차 탐색 기준·차종 · 도보 이동 수단·탐색 기준)
-    entry-options.ts    진입 지점 종류 줄
-    matrix-options.ts   거리 행렬 교통 줄
-
-  src/route-pick/ 경로 만들기 모드
-    route-picker.ts     출발·도착 고르기
-    map-picks.ts        고른 지점 → 경로 프롬프트. 진입로 좌표 선택 규칙
-
-  src/shared/   payload.ts(응답 최소 타입 + `_meta.kind` 판별) · dom.ts · icons.ts
+ui/          template (browser, ESM). Vite + vite-plugin-singlefile → one HTML file
+  map.html              map + left result panel (summary · filters · result list)
+  src/main.ts           App wiring. Receives tool args, results, cancel and teardown
+  src/render-host.ts    composition — map creation, renderer dispatch, modes, re-calls, interactions
+  src/render/           result drawing. result.ts is the single source of markers, info windows and list markup
+  src/host/             host/server messaging (queries, tool context, model context, errors, display mode)
+  src/map/              SDK loader, map styles, theme, colors, overlays, fit area
+  src/panel/            left panel (controls, pager, detail toggle, marker ↔ list link, POI filter)
+  src/rail/             on-map controls (rail, research button, option rows)
+  src/route-pick/       route-building mode
+  src/shared/           payload.ts (minimal response types + `_meta.kind`) · dom.ts · icons.ts
 ```
 
-`@/*` 별칭은 `src/*`를 가리킵니다 (서버 코드 전용). 뷰 코드는 상대경로를 씁니다.
+The `@/*` alias points to `src/*` (server code only). View code uses relative imports.
 
-## 지켜야 할 규칙
+## Server Rules
 
-**stdout에 절대 쓰지 마세요.** `console.log` 금지. 로그는 `logger.log(level, data)`(MCP Logging
-Notification)를 쓰고, 연결 전이나 실패 시에는 자동으로 stderr로 폴백합니다. `env.config.ts`는
-dotenv가 출력하지 못하도록 로드하는 동안 `process.stdout.write`를 봉인합니다.
+**Never write to stdout.** No `console.log`. Log with `logger.log(level, data)` (MCP logging
+notification); it falls back to stderr before connection or on failure. `env.config.ts` seals
+`process.stdout.write` while dotenv loads.
 
-**사용자가 바꿀 수 있는 환경 변수는 `INAVI_APPKEY` 하나입니다.** README·`.env.example`에도 그것만
-적습니다. `INAVI_DOMAIN`은 개발 서버 시험용으로 읽기만 하고 문서에 적지 않습니다. CDN 도메인과
-요청 타임아웃은 **코드에 고정**했습니다(`env.config.ts`) — CDN은 템플릿 CSP에 그대로 들어가 바뀌면
-지도가 비거나 엉뚱한 출처를 허용합니다. 새 설정을 환경 변수로 열지 마세요. 배포 묶음에서
-소스맵을 뺀 것도 같은 까닭입니다(원본 주석이 그대로 실립니다).
+**The only user-facing environment variable is `INAVI_APPKEY`.** README and `.env.example` list
+only that. `INAVI_DOMAIN` is read for dev-server testing but never documented. The CDN domain and
+request timeout are hard-coded in `env.config.ts` because the CDN goes straight into the template
+CSP. Do not expose new settings as environment variables.
 
-**앱키를 로그에 남기지 마세요.** URL을 로그·에러에 넣을 때는 `maskAppkey()`를 통과시킵니다.
+**Never log the API key.** Pass URLs through `maskAppkey()` before logging or putting them in errors.
+Never put the API key in the template HTML — the template fetches it through `get_map_config`
+(a template-only tool) via `app.callServerTool`.
 
-**iNavi로 나가는 요청에는 모두 `client=api-mcp`를 붙입니다.** Maps API 서버가 Tomcat 액세스
-로그만 읽어 이 프로젝트의 호출량을 앱키·경로별로 따로 셉니다 — API 서버는 고치지 않았습니다.
-자리는 둘입니다: REST(`inavi-http.client.ts`의 `CLIENT_QUERY`, GET·POST 모두)와 지도 SDK 로더
-(`ui/src/map/inavi-loader.ts`의 `CLIENT_TAG`). **헤더가 아니라 쿼리인 까닭은 로더가 `<script src>`라
-헤더를 달 수 없어서입니다.** POST도 본문이 아니라 쿼리에 싣습니다 — 로그에 본문은 남지 않습니다.
-모르는 파라미터를 붙여도 응답이 같고, 세 서버 로그에 쿼리째 남는 것을 확인했습니다(2026-10-20 실측).
-**값을 바꾸면 두 자리를 함께 바꾸세요** — 갈리면 집계가 둘로 쪼개집니다.
+**Every request to iNavi carries `client=api-mcp`** as a query parameter so the API server's access
+log can count this project's traffic. Two places: `CLIENT_QUERY` in `inavi-http.client.ts` (GET and
+POST) and `CLIENT_TAG` in `ui/src/map/inavi-loader.ts`. It is a query, not a header, because the SDK
+loader is a `<script src>`. **Change both together.**
 
-**응답 봉투는 `{ header, data }`로 통일합니다.** 본문 전체를 `data` 한 칸에 담습니다. 원본 봉투가
-네 모양이라(이름만 다른 한 겹 · 이미 `data` · 두 겹 `route.data` · RDM은 평평) 이름 바꾸기·껍질
-벗기기·껍질 씌우기가 모두 필요한데, `tools/common/envelope.ts`가 한 자리에서 처리합니다.
+**Responses use one envelope: `{ header, data }`** (`tools/common/envelope.ts`). The upstream APIs
+return four different envelope shapes; normalize them in that one place.
 
-**본문에서 덜어내는 것은 중복 둘입니다** (`tools/common/drop-duplicates.ts`). 둘 다 **같은 응답 안의
-다른 필드에서 그대로 나오는 값**이라 입력 플래그를 두지 않습니다 — 남은 값만 보면 다시 만듭니다.
+**Trimming the body** (`tools/common/drop-duplicates.ts`) removes only values that are exact
+duplicates of another field in the same response: the body's `result` (same as
+`header.isSuccessful`) and RDM `distance.text` / `duration.text` (derivable from `value`). Verify a
+formula holds on real responses before treating a field as a duplicate. On an unknown shape, return
+the original. `isHighWay` is dropped from routes because it is wrong (`tools/route/drop-ishighway.ts`);
+check `paths[].road_code` for `1` instead. Do not add more of these without repeated evidence.
 
-| 뗀 것 | 어디서 되살아나는가 |
-|---|---|
-| 본문의 `result`(boolean) | `header.isSuccessful`과 같은 값 |
-| RDM `rows[].elements[].distance.text`·`duration.text` | 같은 칸 `value` — `18494` → `"18.5 km"`, `2038` → `"33 mins"` (실측 6칸 전부 일치) |
+**Route prediction times are emitted as ISO strings** (`departAt` / `arriveAt`, Korea time) by
+`tools/route/kst-time.ts`. Always Korea time: the stdio server inherits the host machine's `TZ`, so
+never use local-time getters on `Date`.
 
-중복을 뗄 때는 **공식이 실제 응답에서 전부 들어맞는지 먼저 확인하세요.** 한 칸이라도 어긋나면
-그건 중복이 아니라 별개의 값입니다. 아는 모양이 아니면 아무것도 하지 않고 원본을 돌려줍니다.
-
-**중복이 아니라 틀려서 떼는 것이 하나 더 있습니다** — 경로의 `isHighWay`
-(`tools/route/drop-ishighway.ts`). 되살릴 값이 없습니다. 까닭은 `## 스펙이 실제와 다른 곳`에
-적었습니다. **이 자리를 늘리지 마세요** — 틀린 값을 떼는 일은 두 번 이상 실측으로 재현되고
-같은 응답 안에 대신 볼 것이 있을 때만 합니다.
-
-**경로 예측의 시각은 ISO 한 줄로 합쳐 내보냅니다** (`tools/route/kst-time.ts`).
-`times[].start_time`·`end_time`의 다섯 숫자를 떼고 입력과 같은 이름·같은 모양인
-`departAt`·`arriveAt`으로 바꿉니다. 까닭은 `## 스펙이 실제와 다른 곳`의 시각 항목에 있습니다.
-
-**좌표 배열은 기본으로 응답에서 빠집니다.** 입력 `includeCoords`(기본 `false`)가 담을지 정합니다.
-뺀 좌표는 `_meta`로 가고 템플릿이 되꽂아 그립니다
+**Coordinate arrays are left out of responses by default.** `includeCoords` (default `false`)
+controls it. Removed coordinates go to `_meta` and the template restores them
 (`src/tools/common/split-coords.ts` ↔ `ui/src/host/restore-coords.ts`).
 
-| 도구 | 빠지는 것 | `_meta` 키 |
+| Tool | Removed | `_meta` key |
 |---|---|---|
 | `find_route` · `find_walking_route` | `data.paths[].coords[]` | `routeCoords` |
 | `get_admin_boundary` | `data.polygondata[].polygonlist[].polygon[]` | `polygonCoords` |
 
-`_meta`는 **템플릿까지만 가고 모델 컨텍스트에는 오지 않습니다** — Claude Desktop에서 좌표
-7,357개까지 확인했습니다 (옹진군 경계, 폴리곤 153개). 그래서 지도 품질은 그대로 두고 대화 부담만 줄일 수 있습니다.
-실측 15km 경로에서 모델이 받는 양이 22,285 → 5,682바이트가 됐습니다.
-거리·소요 시간·통행료와 구간별 `traffic_color`·`distance`는 이 값과 무관하게 항상 남습니다.
-
-**모델이 읽는 것은 도구 설명이지 출력 스키마의 필드 설명이 아닙니다.** 도보 경로의 `gate_type`에
-`2=stairs`까지 적어 두었는데, "계단은 피해 줘"라고 한 사용자에게 모델이 **"공식 코드표를 찾지
-못해 계단인지 경사로인지 판별하지 못했다"**고 답했습니다(2026-10-15 실측, 두 번 재현).
-코드표를 도구 설명으로 옮기자 읽었습니다. **모델이 꼭 봐야 하는 값의 뜻은 도구 설명에 적으세요** —
-출력 스키마의 설명은 사람과 검증을 위한 자리입니다.
-
-**`outputSchema`는 반드시 선언하고, 본문 필드는 전부 `optional`로 둡니다.** SDK v1은
-`outputSchema`가 있으면 `structuredContent`를 요구하고, 없으면 거부합니다. 검증은 통과 여부만
-보고 `structuredContent`를 바꿔치기하지 않으므로 선언에 없는 필드가 와도 원본 그대로 나갑니다.
-**반대로 선언한 필드가 오지 않으면 도구 호출이 에러가 됩니다** — iNavi는 값이 없는 필드를 통째로
-빼고 보내는 일이 잦아(리버스 지오코딩의 `location`, 검색의 `adm`) 필수로 선언하면 정상 응답이
-에러가 됩니다. `dataEnvelopeOutputSchema`를 쓰세요.
-
-**본문 쪽 객체는 `openObject()`로, 모양을 모르는 자리는 `anyObject()`로 선언합니다.**
-`z.object()`를 그냥 쓰면 `additionalProperties: false`가 나가는데, 우리는 선언하지 않은 필드도
-그대로 통과시키므로 스키마가 코드와 반대로 말하게 됩니다. `z.unknown()`은 검증 키워드가 하나도
-없는 빈 스키마(`{}`)로 나가 일부 MCP 클라이언트가 거부합니다.
-봉투 자체(`{ header, data }`)와 우리가 만드는 출력(`lookup_category_code` 등)은 닫아 둡니다.
-
-**한 스키마 안에서 zod 인스턴스를 재사용하지 마세요.** 변환이 같은 인스턴스를 한 번만 펼치고
-나머지를 `$ref: "#/properties/..."`로 가리키는데, 내부 포인터를 풀지 않는 클라이언트에게는 그
-자리의 스키마가 통째로 사라집니다. 같은 모양이 두 자리에 필요하면 **함수로 만들어 자리마다
-새로 부르세요** (`categorizedAddress()` · `clockTime()` · `point()` 참고).
-
-검색 응답의 `poi[].subpoi.poi`는 **순환 참조**입니다. 한 겹만 모양을 밝히고 그 안을
-`anyObject()`로 열면 나머지 필드는 실구조로 선언할 수 있습니다. `z.lazy()`로 재귀를 모델링하는
-길도 있으나 역시 `$ref`·`definitions`를 낳으므로 쓰지 마세요.
-
-이 규칙은 `test/tools/schema-portability.test.ts`가 지킵니다 — 빈 스키마·`$ref`·닫힌 본문 객체를
-검사하고, 픽스처가 출력 스키마를 통과하는지와 **선언이 실제 필드를 모두 덮는지**까지 봅니다.
-
-**앱키를 템플릿 HTML에 넣지 마세요.** 예전에는 리소스를 내려줄 때 플레이스홀더를 실제 키로
-치환했습니다. 지금은 템플릿이 `get_map_config`(템플릿 전용 도구)를 `app.callServerTool`로 불러
-받아 갑니다. 이 통로가 템플릿 인터랙션 확장의 기반이기도 합니다.
-
-**지도 표시는 기본으로 꺼져 있습니다.** 지도를 쓰는 도구 10종의 입력에 `showMap`(기본 `false`)이 있고, 값이
-응답 `_meta.showMap`으로 전달돼 템플릿이 그릴지 접을지 판단합니다. 도구가 모두 같은 `ui://`
-리소스를 참조하기 때문에, 이 값이 없으면 중간 단계 조회마다 지도가 하나씩 쌓입니다.
-
-**템플릿이 스스로 하는 조회는 모델을 거치지 않습니다.** `ui/src/host/queries.ts`에 두 갈래가 있고
-**둘 다 `app.callServerTool`로 서버 도구를 부릅니다** — `searchInBounds`(화면 영역 재검색)와
-`reverseGeocodeAt`(클릭 지점 주소). 앱키가 서버에 머물고, 결과는 대화에 남지 않습니다.
-
-**브라우저에서 iNavi REST를 직접 부르는 길은 걷어냈습니다.** POC에서 가능성을 보려고 열어 둔
-`searchNearby`가 있었습니다(마커를 누르면 그 자리 주변 500m를 바로 훑었습니다). 짧은 왕복이
-장점이었으나 실기에서 두 가지가 드러났습니다 — **도구를 거치지 않아 모델도 사용자도 무엇이
-일어났는지 알 수 없었고**, 분류 검색 결과에서는 쓸 `query`가 없어 상호명으로 검색해 자기
-자신만 돌아왔습니다. 같은 일을 `search_nearby_category` 도구가 제대로 합니다.
-**새 기능을 이 방식으로 다시 열지 마세요.**
-
-**모델에게 주는 행동 힌트를 사용자 화면에 흘리지 마세요.** 서버는 실패에
-`INAVI Maps API 호출 실패: 100 - Result Not Found` 뒤로 영문 힌트 한 줄을 붙여 올립니다
-(`src/clients/inavi-error.ts`). **그 힌트는 그대로 둡니다** — 모델이 읽고 검색어를 바꿔 다시 불러
-성공한 것을 실측했습니다. 다만 템플릿이 그 문자열을 지도 아래 띠에 그대로 띄워 사용자가 영문
-지시문을 읽었습니다(261016 상용화 리뷰). **화면에 띄울 문구는 `ui/src/host/error-text.ts`가 결과
-코드로 고릅니다** — 원문을 베껴 쓰지 않고, 모르는 코드는 대역으로 떨구며 코드만 괄호에 남깁니다.
-`100`은 고장이 아니라 **없다는 답**이라 "오류"라고 적지 않습니다. **결과 없음의 문구는 부르는
-자리가 고릅니다**(`ErrorPlace`) — 영역에서 찾았으면 `검색 결과가 존재하지 않습니다.` 한 마디,
-지도를 한 번 클릭했으면 `다른 지점을 클릭해주세요`까지입니다. 같은 코드라도 쓸 말이 다릅니다.
-영역 쪽에 `영역을 다시 설정해주세요`를 붙였다가 오른쪽 아래 띠에서 어색하게 꺾여 뗐습니다.
-
-**안내 띠는 결이 둘입니다 — `info`와 `warn`.** `setMapHint(message, 'warn')`을 **되지 않거나
-비어 있음을 알릴 때** 줍니다(실패·막힌 액션·전달 실패). 색은 `--hint-*` 토큰이 가르고, 띠는
-**사이드바가 아니라 지도 위에 뜨므로 `--surface`·`--border`를 쓰지 않습니다** — 어두운 테마에서
-야간 지도와 거의 같은 남색이라 띠가 있는 줄도 몰랐습니다(261016 리뷰). 글자는 13px·600이고
-`opacity`는 쓰지 않습니다(글자까지 흐려집니다). 주의는 **호박색**입니다 — 빨강은 "고장"으로
-읽혀 결과 없음에 과합니다.
-
-**기술 원인은 사용자 문구와 갈라 둡니다** (`DisplayError`). 지도 SDK가 뜨지 않는 까닭은
-CSP·CDN 차단·blob Worker처럼 전부 연동 쪽 사정이라 사용자가 할 수 있는 일이 없습니다.
-`userText`만 화면에 내보내고 원인은 `message`에 남겨 개발자 도구에서 봅니다 — **브라우저
-`console`에도 적지 않습니다.** 잡은 예외를 띄울 때는 `displayText(error)`를 거칩니다.
-호스트 전송·연결 실패도 같습니다 — **원문을 덧붙이지 않습니다.**
-
-**실패를 알리는 자리는 둘뿐입니다.** 지도가 떠 있으면 **안내 띠**(`warn`), 아직 없으면
-**전면 카드**(`.status--error` 안의 `.status-text`)입니다. 둘 다 테·바탕·굵은 글자로 같은
-문법을 쓰고, 전면 카드만 `--danger` 계열입니다(지도조차 못 그린 고장이라서). 새 실패 자리를
-만들지 말고 `reportProblem()`을 부르세요 — 어느 쪽에 띄울지 그 함수가 고릅니다.
-
-**대신 무엇을 했는지는 모델에게 알립니다.** `ui/src/host/model-context.ts`가 `updateModelContext`로
-**대화에 남기지 않고** 모델에게만 요약을 보냅니다. 이게 없으면 사용자가 지도에서 영역을 옮겨
-재검색해 놓고 "여기서 제일 가까운 데는?"이라 물었을 때 모델이 옛 결과로 답합니다.
-상위 5건까지만 싣습니다 — 전체를 실으면 위에서 줄여 둔 것을 도로 늘리는 셈입니다.
-
-**레일의 한 칸(`지도에서 하기`)에는 `경로 만들기` 하나와 고르는 줄 한둘만 둡니다.**
-
-**고르는 줄은 결과 종류를 탑니다** — 통합 검색은 `언어` 하나, **자동차 경로는 `탐색`·`차종`**
-입니다(`route-options.ts`). **도보는 `이동`·`탐색`**입니다 — 이동 수단은 도구가 `walk`·`pm`
-둘만 받아 `도보`·`킥보드·자전거`로 적습니다(자전거는 `pm`에 들어 있습니다). 다시 부를 도구
-이름도 갈립니다(`runRoute(args, tool)`).
-자동차와 도보를 가르는 판정은 `isCarRoute`입니다 — `kind`는 둘을 한 렌더러로 보내므로
-(`route`) **도구마다 다른 것을 고를 때는 서버가 `_meta.kind`에 적어 보낸 원래 값**을 봅니다.
-**고르면 바로 다시 부릅니다** — 줄이 한둘이라 `적용` 버튼은 두지 않습니다.
-
-**템플릿이 스스로 부른 결과에도 좌표를 되꽂아야 합니다** (`restoreCoords`). 경로 좌표는
-본문에서 빠져 `_meta.routeCoords`로 오는데, 모델이 부른 결과는 `main.ts`가 되꽂아 주지만
-**템플릿이 부른 결과는 그 길을 지나지 않습니다** — 옵션을 바꾸자 `경로 좌표가 없습니다`가
-떴습니다(실기 피드백). 새로 여는 재호출 통로마다 같은 자리를 확인하세요.
-
-**템플릿의 몫은 그 도구의 옵션을 바꿔 다시 부르는 것입니다.** 다른 도구를 부르는 일은
-`경로 만들기`처럼 **문장을 만들어 대화로 넘깁니다.** 그래서 액션도 결과 종류를 탑니다 —
-경로 결과에서 또 경로를 만들 일은 없으므로 거기서는 내지 않습니다 (261020 피드백).
-
-**`현재 지도에서 재검색`은 레일이 아니라 지도 아래 가운데입니다** (`research-button.ts`).
-접힌 목록 안에서는 **두 번 눌러야 닿았고, 지도를 옮긴 사람이 그 다음에 할 일이 거기 있는
-줄 몰랐습니다**(실기 피드백). 지도를 옮기는 일과 다시 찾는 일은 한 동작처럼 이어져야
-합니다 — 네이버 지도도 같은 자리에 같은 모양으로 둡니다.
-
-**처음 화면과 달라졌을 때 뜹니다.** 기준은 **처음 화면의 네 귀(좌상·우하)와 견주어 한
-변이라도 제 폭의 10% 넘게 밀렸는가**입니다. 처음에는 "화면 가운데가 처음 영역 밖으로
-나갔을 때"로 두었더니 **반 화면을 끌어야 떠서 한참을 움직여야 했습니다**(실기 피드백).
-그만큼 밀렸으면 화면 가장자리에는 이미 찾지 않은 데가 들어와 있습니다. 되돌아오면 다시
-숨습니다. **뜬 직후의 `moveend`는 기준을 다시 잡는 데 씁니다** — 결과를 그릴 때
-`fitCoordinates`가 300ms 동안 화면을 옮기므로, 그것까지 "사용자가 옮겼다"로 세면 결과가
-뜨자마자 버튼이 따라 뜹니다.
-
-여기에 한 번 많이 넣어 봤습니다. 옵션을 고르는 줄(범위·반경·언어)과 액션 넷을 함께 두었더니
-**창이 지도를 가렸고, 무엇을 누르면 무엇이 되는지를 먼저 배워야 했습니다**(실기 피드백).
-POC에서 되는 것을 확인한 기능이라고 해서 상용 화면에 자리를 주는 것은 아닙니다.
-
-**넣을지 말지는 이 셋으로 가릅니다** — 사용자가 지도에서 하는 일은 ① 결과를 본다
-② 범위를 다시 잡아 다시 찾는다 ③ 하나를 골라 대화로 잇는다, 이것뿐입니다. 여기에 직접
-닿지 않으면 넣지 않습니다. 이 잣대로 **영역 그려서 검색**(화면을 옮겨 재검색하면 같은
-결과입니다) · **좌표 기반 조회**(주소 하나를 띄우고 끝납니다) · **정렬·건수·범위**를
-걷어냈습니다 (261016 리뷰 후속).
-
-**언어만 되돌렸습니다.** 한국어 질의어 그대로 네 언어를 불러 보니 **결과가 글자 그대로
-같았습니다** — 판교역 스타벅스 9건이 좌표까지 한 건도 어긋나지 않았고 이름만 번역돼
-왔습니다(2026-10-19 실측). 목록에 쓰는 필드(`name1`·`catename`·`tel`·`distance`·주소)도
-모두 옵니다. 빠지는 것은 `haengcode`·`address_haeng`·`externallink` 셋인데 화면이 쓰지
-않습니다. **줄이 하나뿐이라 `적용` 버튼을 두지 않고 고르면 바로 부릅니다** — 줄을 또
-더하게 되면 그때 버튼을 되살리세요.
-
-**그 대신 조건을 바꾸는 일은 `대화로` 넘깁니다.** 질의어든 반경이든 정렬이든, 모델에게
-말하면 도구를 다시 부릅니다 — 템플릿이 같은 일을 두 번째 통로로 또 제공할 까닭이 없습니다.
-템플릿에 남긴 둘은 **대화로는 할 수 없는 일**입니다. 지금 보고 있는 화면의 영역은 모델이
-알지 못하고, 지도에서 고른 두 지점도 그렇습니다.
-
-**목록은 쪽으로 넘깁니다** (`pager.ts`). `startposition`을 옮겨 같은 통로로 다시 부릅니다.
-예전에는 **프롬프트를 다시 적어야만** 다음 결과를 볼 수 있었습니다 — 그건 "더 보기"가 아니라
-같은 질문을 다시 하는 일입니다. 전체 건수는 **보고 있는 종류의 것**을 씁니다
-(`poitotalcount`·`admtotalcount`) — 둘을 합친 `totalcount`로 세면 장소만 보는 화면에서
-넘길 쪽이 실제보다 많아집니다. 한 쪽에 다 들어오면 줄을 만들지 않습니다.
-
-**팝오버 항목의 호버는 `--overlay-strong`을 씁니다.** 옅은 쪽(13%)은 팝오버 바탕과 거의
-구분이 안 돼 **파란 막대만 보이고 덮은 면이 사라진 것처럼** 읽혔습니다(실기 피드백).
-지도 위가 아니라 이미 어두운 면 위에 겹치는 자리라 한 단계 더 필요합니다.
-
-**안내 띠의 바탕은 거의 투명(20%)입니다.** 지도 위에 겹치는 자리라 아래가 어디인지 비쳐
-보이는 편이 낫습니다. 92% → 74% → 55%로 내려도 불투명해 보인다는 피드백을 세 번 받았습니다.
-글자를 지탱하는 것은 13px·600과 `backdrop-filter` 둘뿐이라 어느 하나도 빼면 안 됩니다. **전면 실패
-카드는 불투명으로 둡니다** — 거기는 지도 대신 보여주는 자리입니다.
-
-재호출은 **한 통로로 모읍니다** — `queries.ts`의 `runSearch`입니다. 영역 재검색과 페이징이
-모두 거기를 지납니다. 둘 다 하는 일이 같기 때문입니다: **처음 검색의 조건을 물려받고 한두
-칸만 갈아 끼운다.**
-
-**지금 보고 있는 결과를 만든 인자를 템플릿이 들고 있습니다** (`tool-context.ts`의
-`activeArguments`). 모델이 부른 인자가 들어오고, 템플릿이 다시 부르면 **성공한 인자로**
-갈아 끼웁니다. 이게 없으면 영역을 바꿔 재검색한 뒤 쪽을 넘길 때 원래 영역으로 되돌아갑니다.
-실패했을 때는 바꾸지 않습니다 — 앞 결과를 그대로 두므로 기준도 그대로여야 합니다.
-
-**영역이 바뀌면 쪽수는 처음으로 돌아갑니다** (`searchInBounds`) — 다른 자리의 21번째는
-이어지는 값이 아닙니다.
-
-**쓸 수 있는지의 판정은 한 곳에서만 합니다** (`render-host.ts`의 `areaSearchBlockReason`).
-영역 재검색은 **`search_places`를 조건 그대로 영역만 바꿔 다시 부르는 일**이라, 기준은
-**지금 보고 있는 결과가 그 도구에서 왔는가** 하나입니다. 서버가 `_meta.kind`에 적어 보낸
-값을 봅니다 (`searchToolOf`).
-
-**쪽 넘기기와 `경로 만들기`는 주변 분류 검색에서도 됩니다** — 둘 다 장소 목록이기 때문입니다.
-쪽을 넘길 때는 **결과를 만든 도구를 그대로** 다시 부릅니다(`runSearch(args, tool)`). 인자
-체계가 달라(`query` ↔ `catecode`, 정렬 값, 기본 건수 30 ↔ 20) 서로 바꿔 부를 수 없습니다.
-영역 재검색과 언어는 열지 않습니다 — 주변 분류 검색은 영역이 필수이고 언어 입력이 없습니다.
-**지오코딩(`geocode_address`)도 쪽 넘기기만 엽니다** — 주소 후보라 `경로 만들기`는 내지 않습니다.
-쪽 크기는 **5건**입니다(도구 기본값). 후보를 고르는 목록이라 20건은 너무 길었습니다. 쪽 크기는
-첫 쪽을 만든 **도구 기본값**과 같아야 하므로 스키마를 바꾸면 `queries.ts`의 표도 함께 바꿉니다.
-`reverse_geocode`는 옵션 파라미터가 하나도 없어 레일에 열 것이 없습니다.
-**진입 지점(`find_entry_points`)은 `종류` 한 줄**입니다(`entry-options.ts`). `count`는 진입로가
-몇 개뿐이라 열지 않고, API에 `startposition`이 없어 쪽 넘기기도 없습니다.
-**행정구역 경계는 열 것이 없습니다** — `query`·`level`이 모두 필수이고 짝이 맞아야 합니다.
-**거리 행렬은 `교통` 한 줄**입니다(`matrix-options.ts`). 차량 제원은 숫자라 열지 않습니다.
-**최적 순서는 열 것이 없습니다** — `fix`는 옵션처럼 보이지만 값마다 필요한 좌표가 달라
-(`start`↔출발, `end`↔도착, `both`↔둘 다) 바꾸면 실패하거나 다른 질문이 됩니다.
-진입 지점·거리 행렬은 좌표를 `_meta`로 빼지 않아 `runOptionTool` 한 통로로 다시 부릅니다.
-
-여기서 두 번 빗나갔습니다. 렌더러 종류로 갈랐더니 주변 분류 검색이 같은 렌더러를 써서
-열렸고(`nearby` → `search`), 도구 인자의 `query` 유무로 갈랐더니 **`get_admin_boundary`의
-입력에도 `query`가 있어**(행정구역 코드·이름) 또 열려 `100 Result Not Found`를 뱉었습니다.
-**도구 인자의 필드 이름은 도구마다 뜻이 다릅니다** — 같은 이름을 같은 뜻으로 읽지 마세요.
-
-**경로 만들기의 안내는 화면이 말해 주지 않는 것만 적습니다** — `지도를 클릭하여 선택할
-수도 있어요`. 모드를 켜면 목록이 함께 펼쳐지고 줄마다 `출발지로`·`도착지로` 꼬리표가
-붙으므로, 목록에서 고른다는 것은 화면이 이미 말하고 있습니다.
-
-**확인 문구는 줄을 나눠 적습니다** — 고른 것이 위(`출발 → 도착`), 묻는 말이 아래입니다.
-한 줄로 이으면 긴 이름 둘에 밀려 애매한 자리에서 꺾입니다(실기 피드백). 띠는
-`white-space: pre-line`이라 `
-`이 그대로 줄바꿈이 됩니다.
-
-**`다시 고르기`는 목록의 자국까지 걷습니다**(`clearPickMarks`). 핀만 걷으면 목록에
-`출발지`·`도착지` 자국이 남아 고른 것이 그대로 있는 것처럼 보입니다.
-
-**경로 만들기는 묻기 전에 확인을 받습니다.** 예전에는 두 번째 지점이 들어오는 순간 핀을
-걷고 문장을 대화로 넘겼습니다. 그래서 **자기가 찍은 도착지가 어디인지 보지도 못한 채**
-넘어갔습니다(실기 피드백). 지금은 핀 둘을 그대로 둔 채 `출발 → 도착 · 이대로 물어볼까요?`를
-띄우고 `경로 묻기`·`다시 고르기`·`취소`를 받습니다. 고르는 내내 `취소`가 함께 떠 있습니다 —
-잘못 들어왔을 때 레일을 다시 열어 모드를 꺼야 한다면 길이 멉니다.
-
-**안내 띠에 버튼을 달 때는 띠가 아니라 버튼에만 `pointer-events: auto`를 줍니다.**
-띠 전체가 클릭을 받으면 그 아래 지도가 먹통이 됩니다 — 경로 만들기는 지도를 클릭해 고르는
-모드입니다.
-
-**안내 띠는 오른쪽 아래, 알약 버튼은 아래 가운데입니다.** 띠를 왼쪽 아래에 두었다가
-가운데로 옮겼는데 **둘 다 결과 패널에 가렸습니다** — 패널이 왼쪽 위에서 아래까지 쓰기
-때문입니다(실기 피드백 2회). 오른쪽 아래에는 로고·축척이 있으므로 그 위로 띄웁니다.
-알약과 겹치지 않도록 **모드가 돌면 알약을 감춥니다**(`body.map-mode-on`).
-
-**지도 클릭을 쓰는 모드는 `경로 만들기` 하나입니다.** 한때 셋이었습니다 — 영역 그리기 ·
-좌표 조회 · 경로 만들기. 전부 `map.on('click')`을 쓰므로 서로 배타적으로 두어야 했고,
-레일에도 넷이 늘어섰습니다. 둘을 걷어내며 하나만 남겼습니다.
-
-**모드를 다시 늘린다면** `render-host.ts`의 손잡이 옆에 넣고 `syncMode()`를 부르세요.
-**모드 상태를 별도 변수로 두지 마세요** — 손잡이에서 끌어내야 모드가 스스로 끝났을 때도
-화면이 어긋나지 않습니다. 그리고 지도 클릭은 **한 번에 하나만** 가져가야 합니다. 검색
-결과에서 마커를 누르면 이미 주변 조회가 돌기 때문입니다.
-
-**요약 줄에는 결과가 말하는 것만 적습니다** — `장소 30건 · 전체 460건`. 무엇을 해서 얻은
-결과인지(`현재 지도에서 재검색 · …`)를 앞에 덧붙였더니 좁은 패널에서 두 줄로 접혀 **정작
-건수가 밀려났습니다**(실기 피드백). 무엇을 했는지는 방금 누른 사람이 압니다.
-
-**화면을 그대로 다시 찾을 때는 검색 영역을 칠하지 않습니다**(`drawArea: false`). 그 영역이
-곧 지금 보고 있는 화면이라 파란 면이 지도를 통째로 덮습니다. **화면을 맞추는 데는 그대로
-씁니다** — 값은 넘기고 칠하기만 끕니다.
-
-**지표 줄도 같은 규칙으로 접습니다**(`StatRow.detail`). 자동차 경로는 줄이 열까지 늘어
-패널이 지도를 그만큼 가렸습니다 — **거리·시간·요금까지 펴 두고** 탐색 옵션·택시 요금·예측
-시각은 접습니다. 손잡이는 `result-detail.ts`가 목록 줄과 함께 받습니다.
-
-**목록 한 줄은 이름·주소만 펴 두고 나머지는 접습니다** (`상세`). 한 줄이 다섯 행(이름 두 줄
-+ 분류 + 주소 두 줄 + 전화·거리)이라 **한 화면에 두 줄 반**밖에 들어가지 않았습니다(실기
-피드백). 목록은 **어느 것을 고를지 훑는 자리**이므로 고르는 데 쓰는 둘만 남기고, 분류·전화·
-거리·좌표는 고른 뒤에 보는 값이라 눌러서 폅니다. **어느 결과든 같은 규칙입니다** —
-`test/render/consistency.test.ts`가 모든 렌더러에서 그걸 봅니다.
-
-**핀 그림이 사는 칸(`viewBox` 32×44)과 화면에 그릴 크기는 다른 값입니다.** `viewBox`를 함께
-줄였더니 핀이 작아지는 대신 **왼쪽 위만 남고 잘렸습니다**(실기 피드백) — 물방울 경로가 32×44
-좌표로 그려져 있기 때문입니다. `render/pin.ts`의 `ART_*`가 칸, `PIN_*`가 화면 크기이고,
-`test/render/consistency.test.ts`가 둘이 갈려 있는지 봅니다.
-
-**핀과 배지는 32×44에서 26×36으로 줄였습니다.** 결과가 수십 건일 때 지도가 핀으로 덮였고,
-패널도 320 → 286px로 함께 줄였습니다. **배지는 핀과 같은 비율(32:44)을 지킵니다** — 비율이
-어긋나면 같은 물방울인데 뚱뚱해 보입니다.
-
-**렌더러는 응답을 읽어 `MapFeature`·`StatRow`로 옮기기만 합니다.** 마커를 어떻게 생기게
-할지, 정보창에 무엇을 어떤 꼴로 적을지, 목록 한 줄을 어떤 마크업으로 짤지는 전부
-`ui/src/render/result.ts`가 한 번만 정합니다. 렌더러 안에서 `new inavi.maps.Marker`,
-`new inavi.maps.InfoWindow`, `<li class="result-item">`을 **직접 쓰지 마세요** (면을 그리는
-Polygon·Polyline은 결과 고유의 모양이라 예외입니다).
-
-POC 때는 도구가 넷이라 렌더러마다 전부 직접 짰습니다. 열한 종이 되자 같은 뜻인데 자리마다
-다른 것들이 생겼습니다 — 어떤 결과는 정보창이 있고 어떤 결과는 없었고, 좌표 줄은 어디는
-있고 어디는 없었고, 리버스 지오코딩만 `result-item stat-item`을 함께 달아 혼자 여백과 호버가
-달랐습니다. **한쪽을 고치면 나머지가 옛 모양으로 남아 같은 지적이 되풀이됐습니다.**
-`test/render/consistency.test.ts`가 "결과 종류가 달라도 같아야 하는 것"을 한꺼번에 봅니다 —
-새 렌더러를 더하면 그 표에 한 줄을 더하세요.
-
-**좌표만 받는 도구는 그 좌표가 어떤 장소인지도 입력으로 받습니다.** 경로·도보·최적 순서·거리
-행렬 넷이 그렇습니다. API는 좌표만 받고 좌표만
-돌려줍니다. 그래서 핀을 눌러도 정보창에 좌표밖에 띄울 것이 없었습니다 — `티스테이션 걸포점에서
-부천소사경찰서까지`라고 물은 사용자에게 `127.11, 37.39`를 보여 주는 셈입니다(실기 피드백).
-**이름은 모델이 이미 압니다** — 좌표를 얻으려 통합 검색을 먼저 불렀기 때문입니다.
-`startPlace`·`endPlace`·`vias[].place`(모두 선택)로 그 값을 그대로 옮겨 적게 해서 `_meta.places`로
-템플릿에 넘깁니다 (`waypoint-place.input.schema.ts`). API에는 없는 입력이고, `_meta`라 모델
-컨텍스트에도 오지 않습니다. 자리가 셋이라 스키마 함수를 **자리마다 새로
-부릅니다** — 같은 zod 인스턴스를 나눠 쓰면 `$ref`가 나갑니다.
-
-다른 길 둘은 재 보고 접었습니다. **리버스 지오코딩**으로 좌표를 되묻는 길은 상호가 아니라 가장
-가까운 건물 이름을 주고, 경로에 넘기는 좌표가 차량 진입로라 더 어긋납니다. **서버가 지나간 검색
-응답을 기억해 두는 길**은 호스트를 껐다 켜면 기억이 비어서, 모델이 대화 기록만 보고 경로를 다시
-부르는 흔한 경우(`아까 그 경로 다시 보여줘` — 통합 검색 없이 `find_route`만 다시 옵니다)에 좌표로
-돌아갑니다. 입력으로 받으면 모델이 기록을 보고 언제든 다시 채웁니다.
-
-**못 받았으면 지어내지 않습니다** — `출발지`/`도착지`와 좌표를 적습니다. 이름을 알 때는 반대로
-좌표를 적지 않습니다. 좌표는 보여 줄 것이 그것뿐일 때 쓰는 값이지 늘 쓸모 있는 값이 아닙니다.
-
-`_meta.places`는 도구마다 쓰는 칸이 다릅니다 — 경로·도보는 `start`·`end`·`vias`, 거리 행렬은
-`origins`·`destinations`(요청 순서 그대로), 최적 순서는 `points`입니다. **배열은 자리를 비우더라도
-길이를 지킵니다**(`null`) — 어긋나면 엉뚱한 핀에 이름이 붙는데 그건 이름이 없는 것보다 나쁩니다.
-
-**최적 순서만 번호를 믿지 않고 좌표로 맞춥니다.** 응답 `optimize[]`는 방문 순서로 오고 `index`가
-요청 순서를 가리키는데, **그 번호가 무엇의 번호인지**가 스펙에 없습니다. 응답이 돌려주는 좌표는
-우리가 방금 보낸 값이라 그대로 들어맞으므로 그것으로 줄을 세웁니다 (`alignPlacesByCoordinate`).
-
-`fix="start"`에서는 **`index: 0`이 `startX/startY`이고 `1`부터가 `vias[]`**임을 실측했습니다
-(2026-10-13, 판교역 출발 + 경유지 3곳 — 응답이 `0 → 2 → 1 → 3` 순서로 왔습니다).
-`fix="both"`도 같은 규칙입니다 (2026-10-15, 판교역 출발 + 경유지 3곳 + 정자역 도착 —
-응답이 `0 → 2 → 3 → 1 → 4`로 왔고 **마지막 번호가 `endX/endY`**였습니다). `fix="end"`는
-아직 확인하지 않았습니다. **그래도 좌표로 맞추는 쪽을 유지합니다** — 어느 쪽이든 맞고,
-잘못 세면 엉뚱한 핀에 이름이 붙습니다.
-
-**지도에 칠하는 색은 `ui/src/map/map-colors.ts`에만 적습니다.** 핀·클러스터·검색 영역·행정구역
-경계·교통 상황·경로 외곽선이 모두 거기 있고, 테마를 타는 값은 `light`/`dark` 짝으로 두고
-`themed()`로 고릅니다. 렌더러나 CSS에 색을 직접 적으면 또 갈립니다.
-
-**지점이 여럿인데 역할이 같으면 순번마다 색을 바꿉니다** (`PIN_SERIES` · `seriesColor`).
-거리 행렬과 최적 순서가 그렇습니다 — 핀이 전부 한 색이고 번호만 달라서 지도만 봐서는 어느 것이
-몇 번인지 들어오지 않았습니다(실기 피드백). 열 가지를 두고 **열한 번째부터 처음으로 돌아갑니다.**
-목록의 순번 배지도 같은 색으로 칠해 목록과 지도를 잇습니다 (`MapFeature.seriesIndex`).
-
-**핀에 표시를 걸 때는 원본과 복제본을 함께 칠합니다** (`marker-link.ts`의 `paintPins`).
-클러스터러가 아이콘 노드를 **복제해서** 지도에 올리므로, 우리가 든 원본만 칠하면 화면에서는
-아무 일도 일어나지 않습니다 — **목록에 올려도 마커가 도드라지지 않던 까닭**입니다(실기 피드백).
-등록할 때 요소에 번호를 적어 두고(`data-pin-index`) 그 번호로 화면에 있는 쪽을 찾습니다.
-
-**마커에 올리면 목록도 켜고 그 줄로 굴립니다** (`marker-link.ts`의 `highlight(index, 'map')`).
-켜기만 하면 목록 밖에 있는 줄은 티가 나지 않아 "마커에 올려도 목록이 반응하지 않는다"로
-읽혔습니다 — Claude Desktop 기본 지도는 양쪽이 다 됩니다(실기 피드백). 클러스터를 쓰는
-결과에서는 **클러스터러 이벤트**가 이 일을 합니다(`render/result.ts`) — 클러스터러가
-아이콘 노드를 복제해 올리므로 원본 핀에 건 리스너는 돌지 않습니다.
-
-**목록을 눌러 지도를 옮길 때는 당겨서 보여 줍니다** (`marker-link.ts`의 `focusZoom`).
-가운데로 옮기기만 했더니 **결과가 몰려 있을 때 어느 핀인지 집어내지 못했습니다**(실기 피드백).
-`flyTo`에 `zoom`을 주지 않으면 배율이 그대로라 화면이 거의 안 바뀝니다.
-**이미 더 당겨 본 상태면 그대로 둡니다** — 눌렀더니 멀어지면 고른 곳을 놓칩니다.
-
-**목록의 순번 배지에는 지도 마커 그림을 그대로 깝니다.** `pinSvgDataUri(color)`가 만든
-**바로 그 SVG**를 `background-image`로 쓰고, 숫자는 흰 속 원 위에 **핀과 같은 색**으로
-얹습니다 — 지도 마커와 같은 규칙입니다. 색마다 한 번만 만들어 두므로(`pinArtCache`)
-결과가 100건이어도 그림은 색 수만큼만 생깁니다.
-`.result-index`(목록 26×36)와 `.stat-badge`(거리 행렬 21×29)가 같은 방식이고,
-크기는 반드시 **32:44 비율**을 지킵니다.
-
-여기까지 오는 데 세 번 틀렸습니다. ① 동그라미 아래에 `::after`로 꼬리를 달았더니
-**절대 위치 가상 요소가 부모의 글자보다 나중에 칠해져 숫자를 덮었습니다.**
-② 정사각형을 `-45°` 돌려 물방울을 흉내 냈더니 **비율이 1:1이라 뚱뚱해 보였습니다.**
-③ 윤곽만 마스크로 오려 색으로 채웠더니 **흰 테와 흰 속 원이 없어 마커와 달라 보였습니다.**
-흉내 내지 말고 **같은 그림을 쓰세요.**
-
-**`style` 속성에 data URI를 넣을 때 `url()` 안에 따옴표를 두르지 마세요.**
-`style="...url("data:...")"`는 안쪽 큰따옴표에서 속성이 끊깁니다.
-
-**그러려면 SVG 속성을 큰따옴표로 적어야 합니다.** `encodeURIComponent`는 작은따옴표를
-**인코딩하지 않습니다**(`!'()*-._~`가 그렇습니다). 작은따옴표로 적으면 URI에 생따옴표가
-남아 따옴표 없는 `url(...)` 안에서 **값이 통째로 무시되고 그림이 사라집니다**(실기에서 확인).
-큰따옴표는 `%22`로 인코딩돼 안전합니다. `test/render/consistency.test.ts`가 URI에
-따옴표·괄호가 없는지 봅니다.
-
-**`background` 한 줄로 적지 마세요.** 단축 속성은 적지 않은 값을 초기값으로 되돌리므로
-`background: center / contain no-repeat`은 `background-image`까지 `none`으로 만듭니다.
-인라인으로 오는 그림과 섞어 쓸 때는 낱개 속성으로 적습니다.
-
-**가리킬 마커가 없으면 동그라미로 둡니다.** 행정구역 경계는 면만 그리고 핀을 세우지
-않으므로 `featureList(features, { marker: false })`로 `is-plain`을 붙입니다.
-
-**거리 행렬 목록은 출발지로 묶습니다.** 칸마다 `판교역(신분당선) → 서현역(수인분당선)`을
-통째로 적으면 같은 이름이 n번 되풀이되고, 역 이름 둘이 한 줄에 안 들어가 줄이 접힙니다
-(실기 피드백). 출발지는 머리글로 한 번만 적고 그 아래에 도착지만 늘어놓습니다
-(`StatRow.value`가 없으면 머리글, `child`면 딸린 줄).
-**자기 자신으로 가는 칸은 뺍니다** — 늘 `0m · 0분`이라 알려 주는 것 없이 자리만 차지합니다.
-좌표를 견주어 거르므로 출발·도착 목록이 따로 와도 걸립니다.
-
-**검색 결과에는 쓰지 않습니다.** 결과가 수십 건이라 뭉쳐 올리는데, 클러스터 풍선 색이 장소 핀과
-같은 계열이라 한 덩어리로 읽힙니다(`CLUSTER_STEPS`). 핀만 무지개가 되면 그 짝이 깨집니다.
-경로의 출발·경유·도착도 그대로 둡니다 — 거기서는 색이 **자리의 뜻**입니다.
-
-**지도에 칠하는 면은 기본 지도 색과 부딪히지 않는지 보세요.** 행정구역 경계를 녹색으로
-그렸더니 도시에서는 공원·산림 녹지에 묻혀 안 보였습니다(섬에서는 바다 위라 잘 보여서 늦게
-알아챘습니다). `InaviShapeStyle`에는 선 굵기가 없어 **외곽선이 1px 고정**이라 면 색이 전부입니다.
-**녹색만 피하면 됩니다** — 검색 영역(요청·사용자 지정 둘 다)과 경계는 같은 푸른 계열이고,
-경계만 한 단계 짙은 남색입니다. 둘은 같은 화면에 함께 뜨지 않습니다.
-
-**목록 줄은 좌표를 두 벌 싣습니다** — `data-pick-*`(경로에 넘길 진입로)와 `data-pin-*`(번호
-핀이 선 자리). POI는 좌표가 용도별로 따로라 둘이 100m쯤 벌어집니다. 경로 만들기에서 S·E 핀을
-진입로에 찍었더니 **고른 줄의 번호 핀과 다른 데 섰습니다**(실기 피드백). 핀은 `pinPosition`,
-문장에 싣는 좌표는 `position`입니다.
-
-**진입로가 같은 두 장소는 고를 수 없게 막습니다.** 한 역에 출입구가 여럿이어도 차량 진입로는
-하나인 일이 흔합니다 — 판교역(KTX)과 판교역(경강선)은 `rpx/rpy`가 글자 하나까지 같습니다(실측).
-그대로 보내면 출발·도착이 같아 탐색이 되지 않으므로, 까닭을 적어 알리고 다시 고르게 합니다
-(`samePickPosition`).
-
-**고른 것은 자국을 남깁니다.** 경로 만들기에서 목록 줄을 누르면 지도에는 S 핀이 찍히는데
-목록은 그대로고 꼬리표 글자만 `출발지로` → `도착지로`로 바뀌어, **무엇을 골랐는지도 단계가
-넘어간 것도 알아채기 어려웠습니다**(실기 피드백). 고른 줄에 자리 색 테·옅은 바탕·짧은 번쩍임을
-남기고 꼬리표를 `출발지`로 바꿉니다. 자리 색은 지도 핀과 같은 값을 JS가 `--pick-color`로
-넘깁니다 — **CSS에 직접 적으면 `map-colors.ts`와 갈립니다.**
-어느 자리를 채웠는지는 `RoutePicker.add()`가 돌려줍니다. 부르는 쪽이 단계를 따로 세면 어긋납니다.
-
-**겹쳐 칠하는 막(호버·선택)은 `--overlay`·`--overlay-strong` 토큰만 씁니다.** 토큰은
-`:root`와 `body.theme-dark`에서 이미 갈려 있습니다(밝은 바탕엔 먹색, 어두운 바탕엔 흰색).
-`body.theme-dark .무엇:hover { background: … }`처럼 **덧칠용 색을 리터럴로 더 걸지 마세요** —
-선택자가 한 칸 길어져, 밝은 테마에서만 통하던 예외가 어두운 테마에서 뒤집힙니다
-(막아 둔 레일 항목이 어두울 때만 하이라이트가 났습니다).
-
-**지도 위에 겹치는 요소에는 `pointer-events: none`을 확인하세요.** 없으면 지도가 클릭을 받지
-못합니다. `.status`는 `inset: 0` + 불투명이라 **지도 대신** 보여주는 자리입니다. 지도가 이미
-떠 있을 때 무언가 알리려면 `.status`가 아니라 `setMapHint`(아래쪽 띠)를 쓰세요.
-
-**iNavi Web SDK 호출 패턴을 바꾸지 마세요.** 뷰의 지도 코드는 검증된 예제에서 옮겨 온 것입니다.
-데이터 값만 바꾸고 생성자·옵션은 그대로 둡니다. iNavi Maps API는 Google Maps API와 다릅니다.
-
-## API 명세와 예제를 찾는 법
-
-형제 프로젝트가 MCP 서버로 연동돼 있으면 파일을 뒤지지 말고 도구를 호출하세요.
+`_meta` reaches the template only, never the model context.
+
+**The model reads tool descriptions, not output-schema field descriptions.** Put any value meaning
+the model must act on (code tables, naming rules) in the tool description.
+
+**Do not put plan limits (daily quotas) in tool descriptions.** The model starts choosing tools by
+quota instead of by the question they answer.
+
+**Map display is off by default.** The ten map tools take `showMap` (default `false`), passed to
+the template as `_meta.showMap`. All tools share one `ui://` resource; without it every intermediate
+lookup would stack another map.
+
+**Tools that take only coordinates also take what place they are** — `startPlace`, `endPlace`,
+`vias[].place` (route, walking, optimize, matrix), passed to the template as `_meta.places`. Arrays
+keep their length with `null` gaps so names never attach to the wrong pin. When no name is given,
+show `출발지` / `도착지` and the coordinate; never invent a name. Optimize results are aligned to
+places by coordinate, not by `index`.
+
+**Failure hints stay for the model, not the user.** `src/clients/inavi-error.ts` appends an English
+hint to failures; keep it. The template picks user-facing text by result code in
+`ui/src/host/error-text.ts` and never copies the raw message.
+
+## Schema Rules
+
+- **Always declare `outputSchema` and make body fields `optional`.** SDK v1 requires
+  `structuredContent` when `outputSchema` exists, and a declared field that is missing fails the
+  call. iNavi often omits empty fields. Use `dataEnvelopeOutputSchema`.
+- **Body objects use `openObject()`; unknown shapes use `anyObject()`.** Plain `z.object()` emits
+  `additionalProperties: false`, which contradicts pass-through. `z.unknown()` emits `{}`, which some
+  clients reject. Close only the envelope itself and outputs we construct.
+- **Never reuse a zod instance within one schema.** The converter emits `$ref: "#/properties/..."`
+  for the second use, and clients that do not resolve internal pointers lose that schema. Use
+  factory functions called per site (`categorizedAddress()`, `point()`).
+- `poi[].subpoi.poi` in search responses is recursive: describe one level and open the inside with
+  `anyObject()`. Do not use `z.lazy()` (it emits `$ref` / `definitions`).
+- `test/tools/schema-portability.test.ts` enforces these rules and checks that fixtures pass and that
+  declarations cover the real fields.
+
+## Template Rules
+
+**Template queries go through the server.** `ui/src/host/queries.ts` calls server tools with
+`app.callServerTool` (`searchInBounds`, `reverseGeocodeAt`). Never call iNavi REST from the browser.
+
+**Re-calls go through one path** (`runSearch` / `runOptionTool`). They inherit the arguments that
+produced the current result (`activeArguments` in `tool-context.ts`) and replace one or two fields.
+Replace `activeArguments` only on success. A new area resets paging. Results the template fetches
+itself must also pass through `restoreCoords`.
+
+**The template only re-calls the same tool with changed options.** Calling a different tool is done
+by composing a sentence and handing it to the conversation (`sendMessage`, e.g. route building).
+
+**What goes on the map:** only what serves (1) viewing results, (2) re-searching a new area, or
+(3) picking one result to continue in the conversation. Changing conditions (query, radius, sort)
+belongs to the conversation.
+
+**Per-result controls:**
+
+| Result | Controls |
+|---|---|
+| `search_places` | language · paging · research in current view · route building |
+| `search_nearby_category` | paging · route building |
+| `geocode_address` | paging (page size 5, the tool default) |
+| `find_route` | search option · vehicle type |
+| `find_walking_route` | travel mode (`walk` / `pm`) · search option |
+| `find_entry_points` | entry type |
+| `get_distance_matrix` | traffic |
+| `reverse_geocode` · `get_admin_boundary` · `optimize_waypoint_order` | none |
+
+- Decide availability in one place (`areaSearchBlockReason`) using the tool name the server sent in
+  `_meta.kind` (`searchToolOf`, `isCarRoute`). Do not infer from renderer type or argument names —
+  the same argument name means different things in different tools.
+- Paging re-calls the tool that produced the result; argument sets differ between tools. Page size
+  must match the tool's schema default (`queries.ts` table).
+- Paging totals use the count of the kind being shown (`poitotalcount` / `admtotalcount`), except
+  geocoding, which uses `totalcount` (`pager.ts` `pageTotal`).
+- Selecting an option re-calls immediately; there is no Apply button while each control is one row.
+
+**The research button sits at the bottom center** (`research-button.ts`). It appears when any edge
+of the view moves more than 10% of its span from the initial view, and hides again on return. The
+first `moveend` after rendering resets the baseline (the fit animation is not a user move). Do not
+paint the search area when re-searching the current view (`drawArea: false`).
+
+**Route building** is the only map-click mode. Add new modes next to the handle in `render-host.ts`
+and call `syncMode()`; derive mode state from the handle, never a separate variable. Confirm before
+sending (`경로 묻기` · `다시 고르기` · `취소`); `다시 고르기` clears list marks too (`clearPickMarks`).
+Picks use the route entry coordinate (`position`) while pins use `pinPosition`. Block two picks with
+the same entry coordinate (`samePickPosition`). `RoutePicker.add()` returns the filled slot.
+
+**Report the model what the template did** via `ui/src/host/model-context.ts`
+(`updateModelContext`, top 5 results). Check `getHostCapabilities().updateModelContext` first —
+a resolved promise does not mean the host delivered it.
+
+**Failures appear in one of two places**: the hint strip (`warn`) when a map exists, otherwise the
+full-screen card (`.status--error`). Call `reportProblem()`; do not add new failure surfaces. Show
+`userText` only (`DisplayError` / `displayText(error)`); keep technical causes out of the UI and
+out of the browser console. Result code `100` means "nothing found", not an error.
+
+**Summary line shows only what the result says** (`장소 30건 · 전체 460건`).
+
+**List rows show name and address; everything else is behind `상세`.** Stat rows fold the same way
+(`StatRow.detail`): route rows keep distance, time and fare open. `test/render/consistency.test.ts`
+checks this across renderers.
+
+## Rendering Rules
+
+- **Renderers only translate responses into `MapFeature` / `StatRow`.** Markers, info windows and
+  list markup are defined once in `ui/src/render/result.ts`. Do not use `new inavi.maps.Marker`,
+  `new inavi.maps.InfoWindow` or `<li class="result-item">` in renderers (Polygon / Polyline are the
+  exception). Add a row to `test/render/consistency.test.ts` for each new renderer.
+- **All map colors live in `ui/src/map/map-colors.ts`**, themed values as `light` / `dark` pairs via
+  `themed()`. Avoid green for filled areas (it disappears over parks); boundaries are a deeper blue.
+- Points with the same role (matrix, optimize) get per-index colors (`PIN_SERIES`, `seriesColor`,
+  ten colors then wrap); list badges use the same color (`MapFeature.seriesIndex`). Search results
+  and route start/via/end keep their fixed colors.
+- **Pin art and display size are separate** (`render/pin.ts`: `ART_*` is the 32×44 viewBox,
+  `PIN_*` is the drawn size). Badges keep the 32:44 ratio.
+- List badges use the same SVG as the map marker (`pinSvgDataUri(color)`, cached per color) as a
+  `background-image`. Write SVG attributes with double quotes (`encodeURIComponent` leaves `'`
+  unencoded), do not quote inside `url()` in a `style` attribute, and use longhand `background-*`
+  properties. Items without a marker use `featureList(features, { marker: false })`.
+- **Pin highlights paint both the original and the clustered clone** (`paintPins`, `data-pin-index`).
+  Hovering a marker highlights and scrolls the list row; with clustering this is wired through
+  clusterer events. Clicking a list row flies to it with `focusZoom`, never zooming out.
+- Matrix lists are grouped by origin (`StatRow` without `value` is a header, `child` rows follow) and
+  self-pairs are dropped by coordinate.
+
+## Style Rules
+
+- Overlays (hover, selection) use only `--overlay` / `--overlay-strong`; do not add theme-specific
+  literal overrides. Popover item hover uses `--overlay-strong`.
+- The hint strip (`setMapHint`) has `info` and `warn` tones via `--hint-*` tokens, sits at the bottom
+  right above the logo, uses a ~20% background with `backdrop-filter`, 13px / 600 text, no `opacity`.
+  Warnings are amber, not red. Buttons in the strip get `pointer-events: auto`; the strip does not.
+- Anything overlaid on the map needs `pointer-events: none` unless it is interactive. `.status`
+  replaces the map; use `setMapHint` once the map is shown.
+- Hide the research pill while a mode is on (`body.map-mode-on`).
+- Multi-line hint text uses `\n` (`white-space: pre-line`).
+
+**Do not change iNavi Web SDK call patterns.** The map code is ported from verified examples; change
+data values only. iNavi Maps is not Google Maps.
+
+## Finding API Specs and Examples
+
+If the sibling MCP server is connected, call its tools instead of searching files.
 
 ```
-get_api_spec({ operationId: "getSearchesResult" })      # 통합검색
-get_api_spec({ operationId: "getCoordinateResult" })    # 지오코딩
-get_api_spec({ operationId: "getAddressesResult" })     # 리버스 지오코딩
-get_api_spec({ operationId: "postRouteNormalResult" })  # 경로탐색
-list_api_specs({ category: "..." })                     # 그 외 39개 API 탐색
+get_api_spec({ operationId: "getSearchesResult" })      # place search
+get_api_spec({ operationId: "getCoordinateResult" })    # geocoding
+get_api_spec({ operationId: "getAddressesResult" })     # reverse geocoding
+get_api_spec({ operationId: "postRouteNormalResult" })  # route
+list_api_specs({ category: "..." })                     # the other 39 APIs
 
-get_map_example({ id: "dynamic-basic" })                # 지도 초기화
-get_map_example({ id: "marker-basic" })                 # 단일 마커
-get_map_example({ id: "infowindow-clustered-markers" }) # 클러스터 + InfoWindow
-get_map_example({ id: "marker-numbering" })             # 순번 마커
-get_map_example({ id: "shapes-polyline" })              # 교통색상 폴리라인
-get_map_example({ id: "shapes-circle" })                # 원 (검색 반경)
-get_map_example({ id: "shapes-polygon" })               # 폴리곤 (검색 영역)
-get_map_example({ id: "dynamic-map-type" })             # 지도 유형 전환 (스타일 URL은 여기서만 얻는다)
-get_map_example({ id: "dynamic-map-info" })             # getZoom / getCenter / getBounds
-get_map_example({ id: "dynamic-distance-calculation" }) # map.on("click"), setMap(null)로 지우기
+get_map_example({ id: "dynamic-basic" })                # map init
+get_map_example({ id: "infowindow-clustered-markers" }) # clusters + info windows
+get_map_example({ id: "shapes-polyline" })              # traffic-colored polyline
+get_map_example({ id: "dynamic-map-type" })             # map types (the only source of style URLs)
 ```
 
-## iNavi API의 함정
+## iNavi API Pitfalls
 
-- **인증이 헤더가 아니라 URL 경로에 있습니다**: `/maps/v3.0/appkeys/{APPKEY}/...`
-- **실패도 HTTP 200으로 옵니다.** `header.isSuccessful`을 반드시 검사하세요. `300`=인증 실패, `301`=부적절한 URL
-- **좌표 타입이 API마다 다릅니다.** 검색·지오코딩은 문자열(`dpx: "127.1"`), 경로는 숫자(`x: 127.1`),
-  최적 지점 검색도 숫자(`x: 127.110839`), RDM의 `origins`·`destinations`는 좌표 한 쌍을 이어붙인
-  문자열(`"127.110762,37.402184"`)입니다
-- **POI 좌표는 용도별로 따로 있습니다.** `dpx`/`dpy`는 지도 표출용(건물 중심), `rpx`/`rpy`와
-  `routepoints[].rpx/rpy`는 차량 진입로, `entrypoint.px/py`는 진입 지점입니다. 표출용 좌표를 경로
-  탐색에 넘기면 불필요한 우회·U턴이 생깁니다
-- **통합검색은 `poi`와 `adm`을 함께 반환**할 수 있습니다
-- **공간 조건(`spopt`·`radius`·`x1`~`y2`)은 `poi`에만 걸리고 `adm`에는 안 걸립니다.** 판교역 500m로
-  물었는데 김해의 도로명 하나가 `distance: 289660`으로 함께 왔습니다 (실측). 스펙에는 이 말이
-  없고 "결과에 따라 POI 또는 주소가 반환될 수 있다"고만 적혀 있습니다. **주소만 빼는 요청
-  파라미터는 없습니다** — 16개를 다 봐도 없습니다. 그래서 거르는 것은 호출하는 쪽 몫인데,
-  **서버는 거르지 않습니다** — 어느 것이 주소인지는 `adm` 키가 이미 말해 줍니다. 도구 설명으로
-  모델에게 알리고, 지도는 요청한 영역에 맞춥니다 (`ui/src/map/fit-area.ts`).
-  iNavi 자신의 API 콘솔도 `adm`은 지도에 안 찍습니다
-- **행정구역 경계는 이름을 시도부터 다 적어야 찾습니다.** `경기도 성남시 분당구`는 되는데
-  `성남시 분당구`·`경기도 성남시`는 `100 Result Not Found`입니다(2026-10-15 실측). **시 아래
-  구가 있으면 구까지** 적어야 하고, 동은 네 조각을 다 적습니다(`경기도 성남시 분당구 정자동`).
-  하루 60건뿐인 도구라 헛호출 한 번이 비쌉니다 — 도구 설명에 규칙을 적어 두었습니다
-- **지오코딩의 `admtotalcount`는 전체가 아니라 이번에 받은 건수입니다.** `남양`을 10건 요청하면
-  `admtotalcount: 10`·`totalcount: 17`, 다음 쪽은 `7`·`17`입니다(2026-10-20 실측). 통합 검색의
-  같은 이름 필드와 뜻이 다릅니다 — 지오코딩은 `totalcount`로 쪽을 셉니다(`ui/src/panel/pager.ts`의 `pageTotal`)
-- **리버스 지오코딩의 `location.adm`은 배열이 아니라 객체 하나입니다.** 지오코딩(`address.adm[]`)과
-  다릅니다. 스펙 설명에는 "목록(배열)"이라 적혀 있으나 실제 응답은 객체입니다
-- **리버스 지오코딩의 `bldname`은 그 지점의 상호가 아니라 가장 가까운 건물 이름입니다.**
-  도로 한복판 좌표에도 근처 건물 이름이 옵니다. 결과가 없으면 `location` 키 자체가 없습니다
-- **좌표만으로 "여기 뭐 있어?"를 묻는 API가 없습니다.** 통합검색은 `query` 필수, 주변 카테고리
-  검색은 `catecode` 필수입니다. 지점 정보는 주소 + 가까운 건물명이 한계이고, 상호·전화·업종이
-  필요하면 그 이름으로 통합검색을 이어 부르는 수밖에 없습니다
-- **`groupByTrafficColor: true`가 `point_type`의 `V`·`E`를 지웁니다.** 나머지를 똑같이 두고
-  이 옵션만 바꿔 두 번 불러 확인했습니다 (2026-10-12 실측):
+- **Authentication is in the URL path**: `/maps/v3.0/appkeys/{APPKEY}/...`
+- **Failures return HTTP 200.** Always check `header.isSuccessful`. `300` = auth failure, `301` = bad URL.
+- **Coordinate types differ per API.** Search / geocoding use strings (`dpx: "127.1"`), route and
+  entry points use numbers, RDM `origins` / `destinations` use `"x,y"` strings.
+- **POI coordinates differ by purpose.** `dpx`/`dpy` are for display (building center),
+  `rpx`/`rpy` and `routepoints[]` are vehicle entries, `entrypoint.px/py` are entry points. Use entry
+  coordinates for routing.
+- **Search can return both `poi` and `adm`**, and spatial filters (`spopt`, `radius`, `x1`–`y2`)
+  apply only to `poi`. No request parameter excludes `adm`; the server does not filter it, the tool
+  description tells the model, and the map fits the requested area (`ui/src/map/fit-area.ts`).
+- **Admin boundaries need the full name from the province down** (`경기도 성남시 분당구`; include the
+  district when a city has one).
+- **Geocoding `admtotalcount` is the count in this page**, not the total; page with `totalcount`.
+- **Reverse geocoding `location.adm` is an object**, not an array. `bldname` is the nearest building,
+  not the business at that point. No result means no `location` key.
+- **No API answers "what is here?" from coordinates alone.** Search needs `query`, nearby search
+  needs `catecode`.
+- **`groupByTrafficColor: true` removes `V` / `E` from `point_type`.** We keep `true` (a third of the
+  segments) and take vias from the request (`getRequestedVias` + `snapToRoute`), start/end from the
+  first/last coordinate.
+- **Do not enum `point_type`.** Vias are `V1`, `V2`, ...; compare with `startsWith('V')`.
+- **Web SDK assets come from `timbase.inavi.com`, not the API domain.** Both must be in the template
+  CSP (`config.inavi.cdnDomain`).
 
-  | | `true` | 생략(=`false`) |
-  |---|---|---|
-  | 구간 수 | 25개 | **약 85개** |
-  | `point_type` | `S`·`N`만 | `S`·`N`·**`V1`**·**`E`** |
+## Spec vs Reality
 
-  색상별로 **합치는** 과정에서 경유지·도착지 표시가 함께 뭉개집니다. "긴 경로에서 `E`가
-  없다"던 현상의 원인이 이것이었습니다. **우리는 `true`를 유지합니다** — 구간이 1/3로 줄고,
-  경유지·도착지는 아래처럼 다른 데서 얻기 때문입니다.
-- **경유지 핀은 요청 인자에서 끌어옵니다** (`tool-context.ts`의 `getRequestedVias`).
-  검색 영역을 `toSearchArea`로 끌어오는 것과 같은 통로입니다. 요청 좌표는 도로 위가 아닐 수
-  있어 `snapToRoute`로 선에 붙입니다. 출발·도착은 전체 좌표 배열의 첫/마지막 원소로 잡으므로
-  `E`가 없어도 상관없습니다.
-- **`point_type`을 enum으로 못박지 마세요.** 경유지는 `V`가 아니라 **`V1`·`V2`처럼 번호가
-  붙습니다** — 자동차·도보 둘 다 그렇습니다 (실측). 비교는 `startsWith('V')`로 합니다.
-  응답으로 경유지를 찾는 길은 `groupByTrafficColor`를 끈 경우에만 쓸모가 있어 폴백으로만
-  남겨 두었습니다
-- **Web SDK 리소스는 API 도메인이 아니라 `timbase.inavi.com`에서 옵니다.** `/maps?callback=`은 부트스트랩
-  로더일 뿐이고, 실제 SDK JS·CSS·styleJSON·벡터 타일·스프라이트·글리프는 전부 CDN에 있습니다.
-  뷰의 CSP에 두 도메인이 모두 없으면 지도가 빈 화면이 됩니다 (`config.inavi.cdnDomain`)
+Do not declare types from the spec alone; `example` values are often wrong.
 
-## 스펙이 실제와 다른 곳 (2026-09-29 실측)
-
-신규 API 8종을 한 번씩 불러 `get_api_spec` 선언과 대조한 결과입니다.
-**스펙만 보고 타입을 선언하면 안 됩니다.**
-
-| API | 위치 | 스펙 | 실제 |
+| API | Field | Spec | Actual |
 |---|---|---|---|
-| 경로 예측 탐색 | `route.data.times[].startTime`·`endTime` | 이 이름으로 선언 | **`start_time`·`end_time`** |
-| 공간 검색 | `polygon.polygondata[].polygonlist` | `type: object` | **배열** |
-| 도보/PM 경로 | `paths[].speed`·`road_code`·`traffic_color` | 선언 없음 | **셋 다 옵니다** |
-| 공간 검색 | `polygondata[].admincode` | 예시 `"true"` | `"41135109"` — 요청은 10자리인데 응답은 8자리 |
-| RDM | `mode` | 예시 `"driving"` | `"tms"` |
-| RDM | `origins[]` 예시 | 숫자를 평탄하게 나열 | `"x,y"` 문자열 배열 |
-| 경로 탐색 | `isHighWay` | 고속도로 포함 여부 | **거리의 80%가 `road_code: 1`인데 `false`** (그래서 응답에서 뺍니다) |
+| Route prediction | `times[].startTime` · `endTime` | these names | **`start_time` · `end_time`** |
+| Spatial search | `polygondata[].polygonlist` | object | **array** |
+| Walking / PM route | `paths[].speed` · `road_code` · `traffic_color` | not declared | **present** (`traffic_color` is one value for walking) |
+| Spatial search | `polygondata[].admincode` | example `"true"` | 8-digit code (request takes 10) |
+| RDM | `mode` | example `"driving"` | `"tms"` |
+| RDM | `origins[]` | flat numbers | `"x,y"` string array |
+| Route | `isHighWay` | highway included | wrong — dropped from responses |
 
-`route-time`의 시각 필드는 이름이 달라 **스펙대로 짜면 값을 통째로 잃습니다.**
+Count limits contradict within the spec (RDM points 100 vs 300, walking vias 100 vs 5); use the
+smaller value.
 
-**`isHighWay`는 응답에서 뺍니다** (`src/tools/route/drop-ishighway.ts`). 판교역→강남역
-(2026-10-09 08:00 예측)에서 `road_code: 1`(고속도로) 구간이 12,175m/15,082m였는데
-`isHighWay: false`였고 통행료도 800원 나왔습니다. 2026-10-14 고속도로 우선 탐색에서도
-14.4km/16.8km·800원에 같은 `false`가 나와 **두 번 재현**됐습니다.
-`road_code=[5]`·`[2,3,5]`인 픽스처 둘은 `false`가 맞아 지금까지 드러나지 않았습니다 —
-**`road_code: 1`이 섞인 첫 응답에서 어긋났습니다.**
+Fixtures in `test/fixtures/` are captured real responses. Quotas on some APIs are small, so they
+are hard to re-capture.
 
-처음에는 원본을 그대로 보여 주고 출력 스키마 설명에 "믿을 수 없다"고 적어 두었습니다.
-모자랐습니다 — **템플릿 요약이 `고속도로 포함: 아니오`를 사실처럼 한 줄로 보여 줬고**(실기 확인),
-모델도 그 값을 집어 들 수 있습니다. 틀린 값을 설명으로 감싸는 것보다 아예 주지 않는 쪽이
-낫습니다. 고속도로 여부가 필요하면 `paths[].road_code`에 `1`이 있는지 보세요 — 같은 응답
-안에 있고 거리까지 함께 셉니다.
+## MCP Apps Host Compatibility
 
-**시각은 언제나 한국 시각입니다** (`src/tools/route/kst-time.ts`). iNavi가 대한민국만 다루므로
-고정했습니다. stdio 서버는 호스트가 띄우는 자식 프로세스라 **호스트 머신의 `TZ`를 물려받습니다** —
-`new Date(iso)`에 지역시간 getter를 쓰면 같은 입력이 호스트 위치에 따라 다른 시각으로 나갑니다.
-오프셋 없는 ISO는 `Date`를 거치지 않고 문자열에서 바로 뽑고, 오프셋이 있으면 `Intl`로 한국
-벽시계로 옮깁니다.
+- Put CSP in both `_meta.ui.csp` and `_meta.csp` (spec vs MCP Inspector). See `UI_META` in
+  `map-ui.resource.ts`.
+- `resourceDomains` needs `data:` and `blob:` (marker icons are data URIs).
+- The SDK ready callback must be `window.initMap`; the loader hard-codes it and fails silently
+  otherwise (`ui/src/map/inavi-loader.ts`). The loader has a 15 s timeout.
+- `worker-src 'none'` blanks tiles and polylines (Mapbox GL needs blob workers). MCP Inspector
+  hard-codes it, so verify the map in Claude Desktop and use Inspector for tool calls only.
+- `ui/message` fills the host's input box instead of sending.
+- Fullscreen is optional; create the button only when `availableDisplayModes` has it, and dispatch
+  `resize` after a mode change.
+- `ui/tool-cancelled` has not been observed in Claude Desktop.
+- There is no dark style in the SDK docs; a separate night styleJSON is applied
+  (`ui/src/map/map-style.ts`). On theme change, recreate the map, apply the style, then redraw
+  (`setStyle` alone drops markers).
 
-응답도 같은 자리에서 합칩니다 — `times[].start_time`·`end_time`의 연·월·일·시·분 다섯 숫자가
-입력과 같은 이름·같은 모양인 **`departAt`·`arriveAt` ISO 한 줄**로 나갑니다
-(`2026-09-30T07:30:00+09:00`). `index`·`spend_time`을 비롯한 나머지 필드는 그대로 갑니다.
+## Testing
 
-**개수 한도는 스펙 안에서 모순입니다** — RDM `points`는 `maxItems: 100`인데 항목 설명은
-"최대 300개", 도보 `viaList`는 `maxItems: 100`인데 API 설명은 "최대 5개"입니다. 작은 값을 따릅니다.
-
-**도보 경로의 `traffic_color`는 전 구간 단일값(`#d73a76`)입니다.** 값이 오므로 자동차용 렌더러에
-그대로 넘기면 단색이 됩니다. 도보 전용 분기가 필요 없습니다.
-
-**예시(`example`)를 믿지 마세요.** 위 6건 중 3건이 타입 선언은 맞는데 예시만 틀린 경우입니다.
-
-픽스처는 `test/fixtures/`에 있습니다. 호출 한도가 작아(공간 검색 60 · 예측 30 · TSP 10 · RDM 10)
-다시 뜨기 어렵습니다.
-
-**다만 이 한도는 무료 요금제의 사정이고, 도구 설명에는 적지 않습니다.** 한도를 적어 두면
-모델이 **그것을 근거로 도구를 고릅니다** — 다섯 역에서 병원까지 비교해 달라는 물음에
-"하루 10건짜리를 3구간에 쓰느니"라며 거리 행렬 대신 경로 탐색을 세 번 불렀습니다(실측).
-요금제에 따라 넉넉한 값이라 모델이 알 필요가 없고, 알면 판단만 흐립니다. 도구를 고르는 근거는
-**무엇에 답하는 도구인가**여야 합니다.
-
-## MCP Apps 호스트 호환성 (실제로 부딪힌 것들)
-
-- **CSP는 `_meta.ui.csp`와 `_meta.csp` 두 곳에 모두 넣습니다.** 스펙·ext-apps 참조 구현은 전자를,
-  MCP Inspector 2.2.0은 후자를 읽습니다. `map-ui.resource.ts`의 `UI_META` 참고
-- **`resourceDomains`에 `data:`/`blob:`이 필요합니다.** SDK 기본 마커 아이콘과 경로 핀이 data URI라
-  빠지면 마커만 사라집니다. 스펙상 `resourceDomains` 하나가 img/script/style/font/media-src에 함께
-  매핑돼 img-src만 따로 열 수 없습니다
-- **SDK 준비 콜백은 반드시 `window.initMap`입니다.** `?callback=` 값은 무시되고 로더 응답이
-  `"callback":"initMap"`을 하드코딩합니다. 다른 이름을 쓰면 로더가 Promise 체인 안에서 throw하는데
-  catch가 없어 **에러 없이 조용히 멈춥니다.** `ui/src/map/inavi-loader.ts`와 그 회귀 테스트 참고
-- **`worker-src 'none'`이면 타일·폴리라인이 안 그려집니다.** Mapbox GL 기반이라 벡터 타일 파싱에 블롭
-  워커가 필요합니다. WebGL 캔버스가 비고 DOM 마커와 결과 패널만 남습니다. CSP 스펙에 worker를 요청할
-  필드가 없어 서버에서 우회 불가
-- **실측 결과: Claude Desktop은 지도가 정상 렌더링되고, MCP Inspector 2.2.0은 안 됩니다.**
-  Inspector가 `worker-src 'none'`을 하드코딩하고 이를 끄는 설정이 없습니다. Inspector는 도구 호출·응답
-  검증용으로만 쓰고, 지도는 Claude Desktop으로 확인하세요
-- 뷰의 로더는 15초 타임아웃을 두어, 부트스트랩은 성공했지만 SDK가 준비 콜백을 부르지 않는 상황을
-  무한 로딩 대신 CSP 힌트가 담긴 에러로 알립니다
-- **도구 응답의 `_meta`는 템플릿까지만 갑니다.** 모델 컨텍스트에는 오지 않습니다 (좌표 7,357개까지 확인)
-- **`ui/message`는 대화에 바로 넣지 않고 입력창에 채웁니다.** 규격과 다르나 Host의 선택입니다.
-  덕분에 사용자가 문장을 확인하고 보낼 수 있습니다
-- **`표시 모드 전환`(전체화면)은 됩니다.** 단 Optional이라 `availableDisplayModes`에 있을 때만
-  버튼을 만듭니다. 영역이 바뀌어도 지도 캔버스는 스스로 크기를 다시 재지 않으므로 `resize`를 흘립니다
-- **`모델 컨텍스트 갱신`은 부르기 전에 능력부터 봅니다** (`getHostCapabilities().updateModelContext`).
-  POC에서는 재검색 뒤 "방금 지도에서 뭘 했지?"에 모델이 답했으나, 2026-10-14 재측정에서는 모델이
-  **"지도 동작은 전달되지 않는다"**고 답했습니다. 그때 `app.updateModelContext()`는 던지지 않고
-  `resolve`했고, 그래서 실패 힌트도 뜨지 않았습니다 — **`resolve`를 성공으로 믿으면 안 됩니다.**
-  호스트가 조용히 삼켜도 우리는 성공으로 세고 사용자는 아무 안내도 못 받습니다
-- **`ui/tool-cancelled`는 오지 않는 것으로 관측됐습니다.** Host MUST인데도 그렇습니다.
-  받는 쪽 코드는 두었으나 Claude Desktop에서는 동작을 확인하지 못했습니다
-- **호스트가 템플릿에 주는 영역은 어느 서버든 같은 크기입니다.** TomTom·Mapbox·내장 지도 도구로
-  확인했습니다. 그래서 지도에 넓이를 몰아주려고 결과 목록을 사이드바로 접었습니다
-- **iNavi Web SDK 문서에는 어두운 지도 스타일이 없습니다.** `dynamic-map-type` 예제의 URL
-  4종이 전부 밝습니다. 사내에서 쓰는 야간 styleJSON을 따로 받아 테마에 맞춰 입힙니다
-  (`ui/src/map/map-style.ts`). 이미 그린 지도에 `setStyle`만 걸면 마커가 사라지므로,
-  테마가 바뀌면 **지도를 새로 만들어 스타일을 먼저 입히고 그 위에 다시 그립니다**
-
-## 테스트
-
-- `test/clients`, `test/utils`, `test/tools` — 서버 코드. `tsconfig.json`으로 검사
-- `test/render` — 브라우저 뷰 코드. DOM이 필요해 `tsconfig.test-ui.json`으로 따로 검사하고
-  vitest 파일 상단에 `// @vitest-environment happy-dom`을 답니다
-- `test/fixtures/*.json` — 실제 API 응답을 캡처한 픽스처. 렌더러 검증의 기준입니다
-- `test/render/fake-inavi.ts` — iNavi SDK 테스트 대역. 렌더러가 무엇을 그렸는지 기록합니다
-- **실제 SDK로 그려지는지는 Claude Desktop에서 눈으로 확인합니다.** 단위 테스트는 가짜 SDK만 씁니다
+- `test/clients`, `test/utils`, `test/tools` — server code, checked by `tsconfig.json`
+- `test/render` — view code, needs DOM: checked by `tsconfig.test-ui.json`, files start with
+  `// @vitest-environment happy-dom`
+- `test/fixtures/*.json` — captured API responses, the reference for renderers
+- `test/render/fake-inavi.ts` — SDK test double that records what renderers drew
+- Unit tests use only the fake SDK; confirm real rendering in Claude Desktop.
