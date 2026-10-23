@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://mapsapi.inavisys.com/",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@inavi-maps/api-mcp-server",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "transport": {
         "type": "stdio"
       },

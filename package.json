@@ -1,7 +1,7 @@
 {
   "name": "@inavi-maps/api-mcp-server",
   "mcpName": "io.github.inavi-systems/inavi-api-mcp",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "INAVI Maps API를 직접 호출하고 결과를 MCP Apps 동적 지도로 렌더링하는 MCP 서버",
   "keywords": [
     "mcp",
