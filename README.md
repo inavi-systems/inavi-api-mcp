@@ -13,7 +13,7 @@ AI 어시스턴트가 INAVI Maps API를 **직접 호출**해 장소·주소·경
 ---
 
 ## API Key 발급
-API Key 발급은 [이 곳](https://mapsapi.inavisys.com/mcp-intro#how-to-use)에서 확인해주세요.
+API Key 발급은 [이 곳](https://mapsapi.inavisys.com/map-start-guide)에서 확인해주세요.
 > **이 서버는 API Key 없이 시작되지 않습니다.** 아래 빠른 시작의 `INAVI_APPKEY`에 발급받은 키를 넣어 주세요.
 
 ---
