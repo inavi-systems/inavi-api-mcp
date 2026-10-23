@@ -1,0 +1,35 @@
+{
+  "header": {
+    "isSuccessful": true,
+    "resultCode": 0,
+    "resultMessage": "Success"
+  },
+  "address": {
+    "result": true,
+    "totalcount": 1,
+    "admtotalcount": 1,
+    "admcount": 1,
+    "adm": [
+      {
+        "type": 3,
+        "posx": "127.11065",
+        "posy": "37.402109",
+        "admcode": "4113510900",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_sido": "경기도",
+        "address_gu": "성남시 분당구",
+        "address_dong": "삼평동",
+        "address_haeng": "삼평동",
+        "legalcode": "4113510900",
+        "haengcode": "4113565500",
+        "jibun": "678",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "240",
+        "postcode": "13493",
+        "buildname": "삼환하이펙스A동",
+        "accuracy": 0,
+        "distance": 0
+      }
+    ]
+  }
+}

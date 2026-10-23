@@ -1,0 +1,173 @@
+{
+  "search": {
+    "result": true,
+    "type": 0,
+    "totalcount": 24,
+    "count": 3,
+    "poitotalcount": 24,
+    "poicount": 3,
+    "admtotalcount": 0,
+    "admcount": 0,
+    "poi": [
+      {
+        "poiid": 13600855,
+        "depth": "0",
+        "dpx": "127.110712",
+        "dpy": "37.397468",
+        "rpx": "127.110337",
+        "rpy": "37.397426",
+        "routepoints": [
+          {
+            "rpx": "127.110337",
+            "rpy": "37.397426"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.1107",
+          "py": "37.397718"
+        },
+        "name1": "공차(판교역점)",
+        "name2": "판교역공차",
+        "name3": "판교역GONGCHA",
+        "name4": "GONGCHA판교역점",
+        "admcode": "4113510900",
+        "haengcode": "4113565500",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "삼평동",
+        "jibun": "664",
+        "roadname": "경기도 성남시 분당구 판교역로192번길",
+        "roadjibun": "12",
+        "detailaddress": "1층",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 0,
+        "tel": "031-8061-0765",
+        "hasoildata": false,
+        "hasdetailinfo": true,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2020-08-06",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 15524541,
+        "depth": "0",
+        "dpx": "127.110637",
+        "dpy": "37.396676",
+        "rpx": "127.1104",
+        "rpy": "37.396768",
+        "routepoints": [
+          {
+            "rpx": "127.1104",
+            "rpy": "37.396768"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.110825",
+          "py": "37.396343"
+        },
+        "name1": "그라츠커피랩(판교역점)",
+        "name2": "판교역그라츠커피랩",
+        "name3": "",
+        "name4": "",
+        "admcode": "4113510900",
+        "haengcode": "4113565500",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "삼평동",
+        "jibun": "647",
+        "roadname": "경기도 성남시 분당구 대왕판교로606번길",
+        "roadjibun": "31",
+        "detailaddress": "1층",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 0,
+        "tel": "031-707-7438",
+        "hasoildata": false,
+        "hasdetailinfo": true,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2023-05-07",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 15557666,
+        "depth": "0",
+        "dpx": "127.110413",
+        "dpy": "37.392502",
+        "rpx": "127.1098",
+        "rpy": "37.392793",
+        "routepoints": [
+          {
+            "rpx": "127.1098",
+            "rpy": "37.392793"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.109913",
+          "py": "37.392843"
+        },
+        "name1": "디저트39(판교역점)",
+        "name2": "판교역디저트39",
+        "name3": "",
+        "name4": "",
+        "admcode": "4113511000",
+        "haengcode": "4113565700",
+        "address": "경기도 성남시 분당구 백현동",
+        "address_haeng": "백현동",
+        "jibun": "540",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "136",
+        "detailaddress": "지하1층",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 0,
+        "tel": "031-8039-7539",
+        "hasoildata": false,
+        "hasdetailinfo": true,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2023-01-12",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      }
+    ],
+    "adm": []
+  },
+  "header": {
+    "isSuccessful": true,
+    "resultCode": 0,
+    "resultMessage": "Success"
+  }
+}

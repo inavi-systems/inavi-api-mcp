@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+public/ui/
+.env
+.idea/
+.claude/
+*.log
+uploads/
+tmp-samples/
+
+# 인수인계·의사결정 기록 (로컬 전용, 커밋하지 않는다)
+POC-INSIGHTS.md
+TOOL-DESIGN-DECISIONS.md

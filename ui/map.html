@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>INAVI Maps</title>
+  </head>
+  <body>
+    <div class="layout">
+      <div id="map-host">
+        <div id="map"></div>
+        <div id="status" class="status status--loading">준비 중...</div>
+      </div>
+      <!-- 결과 패널은 지도 **왼쪽**에 둔다. SDK가 줌·콤파스를 오른쪽 위에, 로고·축척을
+           오른쪽 아래에 그리기 때문에, 오른쪽에 두면 접어도 손잡이가 ＋ 버튼을 가린다
+           (실기 확인). 지도 조작 아이콘은 그 SDK 컨트롤 아래에 이어 붙인다 (map-rail.ts). -->
+      <div class="panel" id="panel">
+        <div class="panel-body">
+          <div class="panel-head">
+            <div id="summary"></div>
+            <div class="panel-head-actions">
+              <!-- ② 결과 좁히기. 고를 것이 있을 때만 보인다 (render-host의 applyFilterState). -->
+              <button
+                type="button"
+                id="filter-toggle"
+                class="head-button"
+                aria-expanded="false"
+                title="결과 좁히기"
+                hidden
+              ></button>
+              <!-- 목록 펼치기·접기 (render-host의 applyListState). -->
+              <button
+                type="button"
+                id="panel-toggle"
+                class="head-button"
+                aria-expanded="false"
+                title="목록 열기"
+              ></button>
+            </div>
+          </div>
+          <div id="filter-host" class="filter-host"></div>
+          <ul id="result-list"></ul>
+          <!-- 쪽 넘기기. 넘길 것이 있을 때만 보인다 (pager.ts). -->
+          <div id="pager" class="pager" hidden></div>
+        </div>
+      </div>
+      <!-- showMap이 꺼진 중간 단계 조회. 지도 대신 이 한 줄만 남긴다. -->
+      <p id="collapsed-note" hidden>지도 표시 없이 조회한 결과입니다.</p>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

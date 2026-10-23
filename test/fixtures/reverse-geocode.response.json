@@ -1,0 +1,44 @@
+{
+  "header": {
+    "isSuccessful": true,
+    "resultCode": 0,
+    "resultMessage": "Success"
+  },
+  "location": {
+    "result": true,
+    "hasAdmAddress": true,
+    "adm": {
+      "posx": "127.11046759",
+      "posy": "37.40210215",
+      "address": "경기도 성남시 분당구 삼평동",
+      "jibun": "678",
+      "roadname": "경기도 성남시 분당구 판교역로",
+      "roadjibun": "240",
+      "admcode": "4113510900",
+      "postcode": "13493",
+      "bldname": "삼환하이펙스A동",
+      "bldnum": "",
+      "distance": 0
+    },
+    "adm_address": {
+      "address": "경기도 성남시 분당구 삼평동",
+      "jibun": "678",
+      "cut_address": "경기 성남시 분당구 삼평동",
+      "admcode": "4113565500",
+      "address_category1": "경기도",
+      "address_category2": "성남시 분당구",
+      "address_category3": "삼평동",
+      "address_category4": ""
+    },
+    "legal_address": {
+      "address": "경기도 성남시 분당구 삼평동",
+      "jibun": "678",
+      "cut_address": "경기 성남시 분당구 삼평동",
+      "admcode": "4113510900",
+      "address_category1": "경기도",
+      "address_category2": "성남시 분당구",
+      "address_category3": "삼평동",
+      "address_category4": ""
+    }
+  }
+}

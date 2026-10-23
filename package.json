@@ -1,0 +1,92 @@
+{
+  "name": "@inavi-maps/api-mcp-server",
+  "version": "0.0.2",
+  "description": "INAVI Maps API를 직접 호출하고 결과를 MCP Apps 동적 지도로 렌더링하는 MCP 서버",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-apps",
+    "stdio",
+    "inavi",
+    "maps",
+    "south-korea",
+    "korean-maps",
+    "geocoding",
+    "reverse-geocoding",
+    "poi",
+    "search",
+    "route",
+    "navigation",
+    "map-visualization",
+    "claude"
+  ],
+  "license": "MIT",
+  "author": "inavi-webservice",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inavi-systems/inavi-api-mcp.git"
+  },
+  "homepage": "https://github.com/inavi-systems/inavi-api-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/inavi-systems/inavi-api-mcp/issues"
+  },
+  "type": "module",
+  "main": "dist/server.js",
+  "bin": {
+    "inavi-maps-api-mcp": "dist/server.js"
+  },
+  "files": [
+    "dist/server.js",
+    "public/",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "npm run build:ui && npm run build:server",
+    "build:ui": "vite build",
+    "build:server": "tsup",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src ui test",
+    "lint:fix": "eslint src ui test --fix",
+    "format": "prettier --write \"{src,ui,test}/**/*.ts\"",
+    "format:check": "prettier --check \"{src,ui,test}/**/*.ts\"",
+    "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.test-ui.json",
+    "inspect": "npx -y @modelcontextprotocol/inspector@latest node dist/server.js",
+    "prepublishOnly": "npm run lint && npm run type-check && npm test && npm run build",
+    "check:pack": "node scripts/check-pack.mjs",
+    "release": "echo 'Use GitHub Actions: Actions > Release > Run workflow' && exit 1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "dotenv": "^17.2.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "happy-dom": "^20.11.2",
+    "prettier": "^3.6.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3",
+    "vite": "^8.2.1",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^4.1.10"
+  }
+}

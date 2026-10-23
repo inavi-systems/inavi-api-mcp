@@ -1,0 +1,269 @@
+{
+  "header": {
+    "isSuccessful": true,
+    "resultCode": 0,
+    "resultMessage": "Success"
+  },
+  "cate": {
+    "result": true,
+    "totalcount": 119,
+    "count": 5,
+    "poi": [
+      {
+        "poiid": 17177442,
+        "depth": "0",
+        "dpx": "127.110762",
+        "dpy": "37.402217",
+        "rpx": "127.110762",
+        "rpy": "37.402217",
+        "routepoints": [
+          {
+            "rpx": "127.110762",
+            "rpy": "37.402217"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.109987",
+          "py": "37.401942"
+        },
+        "name1": "롱웨이브커피",
+        "name2": "",
+        "name3": "",
+        "name4": "",
+        "admcode": "4113510900",
+        "haengcode": "",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "",
+        "jibun": "678",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "240",
+        "detailaddress": "1층",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 4,
+        "tel": "031-698-2845",
+        "hasoildata": false,
+        "hasdetailinfo": true,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2024-12-12",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 15063716,
+        "depth": "0",
+        "dpx": "127.11075",
+        "dpy": "37.402034",
+        "rpx": "127.110862",
+        "rpy": "37.402334",
+        "routepoints": [
+          {
+            "rpx": "127.110862",
+            "rpy": "37.402334"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.109987",
+          "py": "37.401942"
+        },
+        "name1": "핸드메이드(판교4호점)",
+        "name2": "핸드메이드카페",
+        "name3": "카페핸드메이드",
+        "name4": "",
+        "admcode": "4113510900",
+        "haengcode": "",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "",
+        "jibun": "678",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "240",
+        "detailaddress": "",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 17,
+        "tel": "031-698-3599",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2022-01-05",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 10638589,
+        "depth": "0",
+        "dpx": "127.110587",
+        "dpy": "37.402076",
+        "rpx": "127.110862",
+        "rpy": "37.402334",
+        "routepoints": [
+          {
+            "rpx": "127.110862",
+            "rpy": "37.402334"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.109987",
+          "py": "37.401942"
+        },
+        "name1": "까로치아카페",
+        "name2": "",
+        "name3": "",
+        "name4": "",
+        "admcode": "4113510900",
+        "haengcode": "",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "",
+        "jibun": "678",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "240",
+        "detailaddress": "",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 20,
+        "tel": "031-757-2344",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2022-03-17",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 17801266,
+        "depth": "0",
+        "dpx": "127.110525",
+        "dpy": "37.402101",
+        "rpx": "127.110525",
+        "rpy": "37.402101",
+        "routepoints": [
+          {
+            "rpx": "127.110525",
+            "rpy": "37.402101"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.109987",
+          "py": "37.401942"
+        },
+        "name1": "오늘은샐러드",
+        "name2": "",
+        "name3": "",
+        "name4": "",
+        "admcode": "4113510900",
+        "haengcode": "",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "",
+        "jibun": "678",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "240",
+        "detailaddress": "",
+        "catecode": "100600",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 23,
+        "tel": "",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2026-07-06",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 15530940,
+        "depth": "0",
+        "dpx": "127.11065",
+        "dpy": "37.401992",
+        "rpx": "127.110862",
+        "rpy": "37.402317",
+        "routepoints": [
+          {
+            "rpx": "127.110862",
+            "rpy": "37.402317"
+          }
+        ],
+        "entrypoint": {
+          "px": "127.109987",
+          "py": "37.401942"
+        },
+        "name1": "오페라빈에스프레소",
+        "name2": "",
+        "name3": "",
+        "name4": "",
+        "admcode": "4113510900",
+        "haengcode": "",
+        "address": "경기도 성남시 분당구 삼평동",
+        "address_haeng": "",
+        "jibun": "678",
+        "roadname": "경기도 성남시 분당구 판교역로",
+        "roadjibun": "240",
+        "detailaddress": "",
+        "catecode": "100602",
+        "catename": "카페",
+        "dp_catecode": "380",
+        "distance": 24,
+        "tel": "",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2022-12-14",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "externallink": [],
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      }
+    ]
+  }
+}

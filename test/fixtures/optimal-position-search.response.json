@@ -1,0 +1,25 @@
+{
+  "header": {
+    "isSuccessful": true,
+    "resultCode": 0,
+    "resultMessage": "Success"
+  },
+  "data": {
+    "result": true,
+    "count": 2,
+    "entrypoints": [
+      {
+        "x": 127.110839,
+        "y": 37.40234,
+        "type": 1,
+        "angle": 180
+      },
+      {
+        "x": 127.110002,
+        "y": 37.401949,
+        "type": 2,
+        "angle": 0
+      }
+    ]
+  }
+}

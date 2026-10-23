@@ -1,0 +1,1256 @@
+/*
+ * 톤 — 지도 마커와 같은 **푸른 계열**.
+ *
+ * 무채색으로 두면 파란 마커·검색 영역과 패널이 따로 논다. `--accent`를 장소 핀과 같은
+ * 색(`#3F62E0`)으로 맞춘다.
+ *
+ * `--accent`는 **칠하는 면**(켜진 모드·고른 항목·순번)의 색이고 `--accent-fg`는 그 위의
+ * 글자색이다. 어두운 테마에서는 한 단계 밝은 파랑을 쓰되 글자는 양쪽 모두 흰색이다.
+ *
+ * `--hover`는 바탕 위에 겹치는 손가락 자국이다. `--surface`로 쓰면 어두운 테마에서 바탕과
+ * 거의 같아 눌릴 수 있는 줄 모른다 (실기 피드백).
+ */
+:root {
+  --bg: #ffffff;
+  --fg: #121722;
+  --muted: #5f6b7d;
+  --border: #d2dae6;
+  --surface: #f2f5fa;
+  --hover: #e3ebf9;
+  /*
+   * 겹쳐 칠하는 막. **밝은 바탕에는 검정을, 어두운 바탕에는 흰색을** 얹는다.
+   *
+   * 한 가지 색으로는 두 테마를 못 덮는다 — 반투명 파랑을 썼더니 흰 바탕에서는 밝기가
+   * 크게 바뀌어 잘 보였지만, 검은 바탕에서는 변화가 몇 %에 그쳐 **사실상 안 보였다**
+   * (실기에서 세 번 확인). 바탕이 밝으면 어둡게, 어두우면 밝게가 유일하게 양쪽에서 통한다.
+   */
+  --overlay: rgb(17 24 39 / 7%);
+  --overlay-strong: rgb(17 24 39 / 12%);
+  --accent: #3f62e0;
+  --accent-fg: #ffffff;
+  --danger: #d93025;
+  /*
+   * 지도 위 안내 띠. **사이드바가 아니라 지도 위에 뜨는 자리라 색을 따로 둔다.**
+   *
+   * `--surface`·`--border`를 그대로 썼더니 어두운 테마에서 야간 지도와 거의 같은 남색이라
+   * 띠가 있는 줄도 몰랐다 (261016 리뷰). 뚜렷한 테로 지도와 가르고, 주의는 호박색으로
+   * 가른다 — 빨강은 "고장"으로 읽혀 결과 없음에 과하다.
+   */
+  /*
+   * 띠는 지도 위에 겹치므로 **비친다.** 92% → 74% → 55%로 내려도 불투명해 보인다는
+   * 피드백을 세 번 받아 **20%로 정했다**(2026-10-20). 거의 유리창이다.
+   *
+   * 이 값에서 글자를 지탱하는 것은 면이 아니라 **굵은 글자(13px·600)와 뒤를 흐리는 것**
+   * 둘뿐이다 — `backdrop-filter`를 빼거나 글자를 가늘게 하면 그 자리에서 무너진다.
+   */
+  --hint-bg: rgb(255 255 255 / 20%);
+  --hint-fg: #101624;
+  --hint-border: #aebbd0;
+  /*
+   * 주의는 **면을 채운다.** 옅은 크림 바탕에 갈색 글자로 두었더니 밝은 지도와 명도가
+   * 비슷해 면이 떠오르지 않았다 (실기 확인). 띠는 **지도와 반대 명도**여야 읽힌다 —
+   * 밝은 지도 위에서는 짙게 채우고 글자를 희게 한다. 흰 글자 대비 5.8:1이다.
+   */
+  --hint-warn-bg: #a8490a;
+  --hint-warn-fg: #ffffff;
+  --hint-warn-border: #7a340a;
+  --danger-bg: #fdecea;
+  --danger-border: #eeb0a9;
+}
+
+/*
+ * 어두운 테마.
+ *
+ * `body.theme-dark`를 **함께** 건다. 색 변수는 상속으로 내려오므로, `:root`보다 한 칸
+ * 안쪽인 `body`에서 정한 값이 호스트가 `:root`에 꽂은 인라인 변수보다 가깝다 — 어느 쪽이
+ * 이기든 우리 값이 쓰인다 (theme.ts의 `applyTheme`).
+ */
+:root[data-theme='dark'],
+:root.dark,
+body.theme-dark {
+  --bg: #0d1220;
+  --fg: #e6ecf7;
+  --muted: #8e9ab0;
+  --border: #253047;
+  --surface: #141c2e;
+  --hover: #253252;
+  --overlay: rgb(255 255 255 / 13%);
+  --overlay-strong: rgb(255 255 255 / 20%);
+  --accent: #5c7df0;
+  --accent-fg: #ffffff;
+  --danger: #ff6b61;
+  /* 야간 지도가 남색이라 `--surface`(#141c2e)로는 묻힌다. 밝은 글자와 밝은 테로 가른다. */
+  --hint-bg: rgb(21 29 52 / 20%);
+  --hint-fg: #f3f7ff;
+  --hint-border: #51628c;
+  --hint-warn-bg: #3b2a11;
+  --hint-warn-fg: #ffd08f;
+  --hint-warn-border: #c78a2b;
+  --danger-bg: #3a1c18;
+  --danger-border: #8f3b33;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * **`hidden`을 `display`로 덮지 않는다.**
+ *
+ * `hidden` 속성은 UA 스타일시트의 `display: none`일 뿐이라, 우리가 그 요소에 `display`를
+ * 적으면 조용히 덮인다 — 접어 둔 `상세`가 처음부터 다 보였다(실기 피드백). 같은 함정이
+ * `.pager`·`.status`·`.head-button`에도 있었다. 자리마다 `[hidden]`을 덧적는 대신
+ * **여기 한 줄로 막는다.** `!important`를 쓰는 몇 안 되는 자리다 — `hidden`은 "보이지
+ * 않는다"는 뜻이고 그보다 센 말은 없다.
+ */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.layout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 420px;
+}
+
+#map-host {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 260px;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+.status {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.status--error {
+  color: var(--danger);
+}
+
+/* 실패는 **카드 한 장**으로 보인다 — 안내 띠와 같은 문법이다(테 · 바탕 · 굵은 글자).
+   빨강 글자 한 줄만 두었더니 어두운 테마에서 읽히지 않았다 (261016 리뷰).
+   띠와 달리 여기는 지도 대신 덮는 자리라 호박색이 아니라 `--danger` 계열을 쓴다 —
+   지도를 아직 그리지 못한 고장이기 때문이다. */
+.status--error .status-text {
+  max-width: 440px;
+  padding: 12px 14px;
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* 지도 위 안내 띠 (경로 만들기 안내 · 재조회 대기).
+   `.status`는 **지도 대신** 보여주는 자리라 `inset: 0`으로 화면을 덮고 클릭까지 먹는다.
+   그리는 중에는 지도가 보여야 하고 클릭이 지도까지 닿아야 하므로 따로 둔다. */
+.map-hint {
+  position: absolute;
+  /* **오른쪽 아래.** 왼쪽 아래도 가운데도 결과 패널에 가렸다 — 패널이 왼쪽 위에서
+     아래까지 쓰기 때문이다(실기 피드백 2회). 로고·축척이 맨 아래에 있으므로 그 위로
+     올려 둔다. */
+  right: 12px;
+  bottom: 42px;
+  max-width: min(340px, 56%);
+  z-index: 6;
+  /* 이게 없으면 띠가 지도 클릭을 가로챈다 — 경로 만들기는 지도를 클릭해 고른다. */
+  pointer-events: none;
+  padding: 9px 12px;
+  border: 1px solid var(--hint-border);
+  border-radius: 8px;
+  background: var(--hint-bg);
+  color: var(--hint-fg);
+  /* 12px·반투명이면 지도 위에서 읽히지 않는다 (261016 리뷰). 글자를 키우고 굵게 한다.
+     `opacity`는 글자까지 함께 흐려지므로 쓰지 않는다 — 면의 투명도는 `--hint-bg`가 정한다. */
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: center;
+  /* 줄을 나눠 적은 안내(`출발 → 도착` / `물어볼까요?`)를 그대로 보인다. */
+  white-space: pre-line;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
+  /* 흐리지 않으면 지도 글자가 띠 글자와 겹쳐 둘 다 읽히지 않는다. 투명할수록 더 흐린다. */
+  backdrop-filter: blur(10px);
+}
+
+/*
+ * 띠에 다는 버튼 (경로 만들기의 확인·취소).
+ *
+ * **띠 자체는 `pointer-events: none`으로 두고 버튼에만 되돌린다.** 띠 전체가 클릭을
+ * 받으면 그 아래 지도가 먹통이 된다 — 경로 만들기는 지도를 클릭해 고르는 모드다.
+ */
+.map-hint-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 7px;
+}
+
+.map-hint-button {
+  padding: 4px 10px;
+  border: 1px solid var(--hint-border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.map-hint-button:hover {
+  background: var(--overlay);
+}
+
+/* 권하는 쪽 하나. 나머지와 색으로 갈라 둔다. */
+.map-hint-button.is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* 주의 — 되지 않거나 비어 있음을 알릴 때. 안내와 **색으로** 갈린다. */
+.map-hint[data-tone='warn'] {
+  border-color: var(--hint-warn-border);
+  background: var(--hint-warn-bg);
+  color: var(--hint-warn-fg);
+}
+
+/*
+ * `현재 지도에서 재검색` — 지도 아래 가운데에 떠 있는 알약 버튼 (research-button.ts).
+ *
+ * **지도를 움직였을 때만 뜬다.** 늘 떠 있으면 방금 받은 결과를 그대로 두고도 다시 찾으라고
+ * 권하는 꼴이 되고, 지도 아래쪽을 늘 가린다.
+ */
+.research-button {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 6;
+  display: none;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--hint-border);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 28%);
+  transform: translateX(-50%);
+}
+
+.research-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.research-button.is-visible {
+  display: inline-flex;
+}
+
+/* 지도 클릭 모드가 돌 때는 감춘다. 안내 띠와 겹치면 둘 다 못 읽는다. */
+body.map-mode-on .research-button {
+  display: none;
+}
+
+/* 결과 패널.
+   호스트가 주는 영역은 어느 서버든 같은 크기라(실연동 확인) 지도에 넓이를 몰아준다.
+
+   **왼쪽에 둔다.** SDK가 줌·콤파스를 오른쪽 위에, 로고·축척을 오른쪽 아래에 그린다.
+   오른쪽에 두면 패널을 접어도 손잡이가 ＋ 버튼을 가린다(실기 확인). 지도 조작 아이콘은
+   그 SDK 컨트롤 아래에 이어 붙였다 (map-rail.ts).
+
+   아래에 두지 않는 이유 — 전체화면에서는 호스트의 프롬프트 입력창이 화면 아래 가운데에
+   떠서 목록을 가린다. 실기에서 확인했다. */
+.panel {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 7;
+  display: none;
+  flex-direction: row;
+  align-items: stretch;
+  /* 지도가 주인공이다. 한 줄을 접고 나서 너비도 함께 줄였다 (실기 피드백). */
+  width: min(286px, 46%);
+  /* 아래를 비워 둔다. 전체화면에서는 호스트의 프롬프트 입력창이 그 자리에 온다. */
+  max-height: calc(100% - 64px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgb(16 24 40 / 16%);
+}
+
+.panel-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 요약 글자(12px)는 손잡이(24px)보다 낮다. 위로 붙이면 글자만 3px쯤 떠서 띠 안에서
+   어긋나 보인다 — 가운데로 맞춘다 (실기 피드백). */
+.panel-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface);
+}
+
+body:not(.list-collapsed) .panel-head {
+  border-bottom: 1px solid var(--border);
+}
+
+#summary {
+  min-width: 0;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* 요약 오른쪽에 붙는 손잡이 둘 (결과 좁히기 · 목록 열기). */
+.panel-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.head-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* 위 줄의 `display: flex`가 `hidden`을 덮는 함정. 맨 위의 전역 `[hidden]` 규칙이 이미
+   막으므로 여기는 겹쳐 둔 방어다. */
+.head-button[hidden] {
+  display: none;
+}
+
+.head-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.head-button:hover {
+  border-color: var(--accent);
+  background: var(--overlay);
+  color: var(--accent);
+}
+
+.head-button.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+#result-list {
+  /* 목록만 줄어든다. 그래야 아래 붙은 쪽 넘김이 밀려나지 않는다 (pager.ts). */
+  flex: 0 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* 첫 결과가 오기 전에는 빈 카드를 띄우지 않는다. */
+body.has-result .panel {
+  display: flex;
+}
+
+/* 경로 만들기 모드 — 목록 항목을 눌러 출발·도착을 고를 수 있음을 보인다.
+   안내 문구만으로는 목록도 고르는 곳이라는 걸 알아채기 어려웠다 (실기 피드백). */
+body.route-mode #result-list .result-item {
+  cursor: pointer;
+}
+
+body.route-mode #result-list .result-item:hover {
+  background: var(--overlay);
+}
+
+/* 고르는 동안에는 `대화로`를 접는다. 목록의 일이 **고르는 것** 하나로 좁아지는 자리이고,
+   버튼 둘이 나란히 서면 장소 이름이 설 자리가 두 글자로 줄어든다 (실기 피드백). */
+body.route-mode #result-list .send-button {
+  display: none;
+}
+
+body.route-mode #result-list .result-item::after {
+  content: '출발지';
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 2px 5px;
+  /* 자리 색은 지도 핀과 같은 것을 JS가 넘겨 준다 (render-host.ts의 paintPick).
+     색을 여기 적으면 map-colors.ts와 갈린다. */
+  border: 1px dashed var(--pick-color, var(--accent));
+  border-radius: 6px;
+  color: var(--pick-color, var(--accent));
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+body.route-mode.route-step-end #result-list .result-item::after {
+  content: '도착지';
+}
+
+/* 목록 ↔ 마커 잇기 (marker-link.ts). 한쪽에 마우스를 올리면 다른 쪽도 함께 도드라진다.
+   호버와 같은 이유로 반투명을 쓴다 — 호스트가 바탕색을 바꿔도 그만큼 밝아진다. */
+#result-list .result-item.is-linked {
+  background: var(--overlay-strong);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+#result-list .result-item:hover {
+  background: var(--overlay);
+}
+
+/* 고른 지점은 자국을 남긴다. 꼬리표 글자만 바뀌어서는 무엇을 골랐는지 알아채기
+   어려웠다 (실기 피드백).
+   `:hover`·`.is-linked`와 특정도가 같고 `::after`도 두 번 쓰므로,
+   **반드시 위의 모든 `.result-item` 규칙 뒤에** 둔다 — 앞에 두면 `도착지로` 글자가
+   고른 줄에까지 그대로 남는다 (실기 피드백). */
+#result-list .result-item.is-picked {
+  background: var(--pick-tint);
+  box-shadow: inset 3px 0 0 var(--pick-color);
+  cursor: default;
+  animation: pick-flash 420ms ease-out;
+}
+
+/* 누른 순간을 알린다 — 글자만 바뀌면 눌린 줄 모른다. */
+@keyframes pick-flash {
+  0% {
+    background: var(--pick-color);
+  }
+
+  100% {
+    background: var(--pick-tint);
+  }
+}
+
+/* 고른 줄은 `도착지로` 권유를 거두고 **무엇으로 골랐는지**를 적는다. */
+body.route-mode #result-list .result-item.is-picked::after {
+  content: attr(data-picked-as);
+  border-style: solid;
+  background: var(--pick-color);
+  /* 채운 바탕 위의 글자. 테마를 타는 값이 아니라 대비를 위한 흰색이다. */
+  color: #fff;
+}
+
+.map-pin.is-linked {
+  z-index: 5;
+  transform: scale(1.18);
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 45%));
+}
+
+/* 접으면 요약 줄만 남고 지도가 전체를 쓴다. */
+body.list-collapsed #result-list {
+  display: none;
+}
+
+.result-item {
+  cursor: pointer;
+  display: flex;
+  /* 꼬리표·버튼이 좁을수록 장소 이름이 넓게 선다. 이름이 접히는 자리가 곧 줄 수다. */
+  gap: 6px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 이름은 목록에서 가장 먼저 읽는 값이다. 패널 기본(14px)보다 한 단계만 줄인다.
+   `스타벅스(판교알파돔타워점)`처럼 띄어쓰기 없는 긴 이름은 어디선가 끊을 수밖에 없는데,
+   마지막 줄에 `점)` 한 토막만 남으면 눈에 걸린다 — 브라우저가 줄을 고르게 나누게 한다. */
+.result-body strong {
+  font-size: 13px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* 순번 배지. **지도 마커 그림을 그대로 깐다** — 흰 테와 흰 속 원까지 같아야 목록 줄과
+   지도의 핀이 한눈에 맞물린다 (실기 피드백). 그림은 `render/pin.ts`가 만든 것과 같은
+   SVG이고 색만 인라인으로 온다.
+
+   크기는 지도 마커(32×44)와 **같은 비율**을 지킨다. 비율이 1:1이면 같은 물방울인데
+   뚱뚱해 보인다(실기 피드백). 글자는 흰 원 안에 앉으므로 **핀과 같은 색**이다.
+   줄 높이를 먹지 않도록 세로 여백을 주지 않는다. */
+.result-index,
+.stat-badge {
+  position: relative;
+  flex: 0 0 auto;
+  /* `background` 한 줄로 적으면 `background-image`까지 `none`으로 되돌린다. 낱개로 적는다. */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 25%));
+}
+
+.result-index > b,
+.stat-badge > b {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.result-index {
+  width: 22px;
+  height: 30px;
+}
+
+/* 화살표 배지. 그림이 정사각이라 핀의 32:44 비율을 쓰면 찌그러진다. */
+.result-index.is-arrow {
+  width: 26px;
+  height: 26px;
+}
+
+.result-index > b {
+  font-size: 9px;
+}
+
+/* 두 자리 이상은 흰 원 안에 들어가도록 줄인다 (지도 마커의 `small-text`와 같은 규칙). */
+.result-index.is-small > b {
+  font-size: 7.5px;
+  letter-spacing: -0.03em;
+}
+
+/* 핀을 세우지 않는 결과(행정구역 경계)는 동그라미로 둔다 — 없는 마커를 가리키게 된다. */
+.result-index.is-plain {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  filter: none;
+}
+
+.result-index.is-plain > b {
+  position: static;
+  transform: none;
+  display: block;
+  color: var(--accent-fg);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 18px;
+  text-align: center;
+}
+
+.result-body {
+  /* 한글은 글자 단위로도 끊겨서 "분당내곡 / 로 121"처럼 갈라진다. `keep-all`이면 띄어쓰기
+     에서만 끊는다. 띄어쓰기 없이 긴 토막은 그때만 강제로 넘긴다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  display: flex;
+  /* 남는 자리를 차지한다. .result-item이 space-between이라 이게 없으면 `대화로` 버튼이
+     없는 목록(진출입 지점·행정구역 경계·경유지 순서)에서 글이 오른쪽 끝에 붙는다. */
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.result-body em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.result-body span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 주소는 제 줄을 쓴다. 거리·우편번호를 같은 줄에 붙이면 "…117 · 87m"처럼 꼬리가
+   어중간하게 끊긴다 (render/search.ts에서 줄을 갈라 둔다). */
+.result-address {
+  /* 마지막 줄에 한 토막만 남지 않게 브라우저가 줄을 고르게 나눈다. */
+  text-wrap: pretty;
+}
+
+.result-meta {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* 접어 둔 값. 펴면 분류·전화·거리·좌표가 제자리에 나온다. */
+.result-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 펴고 접는 손잡이. 줄 높이를 먹지 않도록 글자만 남긴다. */
+.result-more {
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.result-more:hover {
+  color: var(--accent);
+}
+
+.result-more::before {
+  content: '▾ ';
+}
+
+.result-more.is-open::before {
+  content: '▴ ';
+}
+
+.result-coord {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 경로 요약은 목록이 아니라 지표 나열이라 좌우 배치로 바꾼다. */
+/* 꼬리표가 길다. 거리 행렬은 `판교역(신분당선) → 서현역(수인분당선)`처럼 장소 이름 둘이
+   한 줄에 들어가므로, 패널 기본 글자(14px)로는 두 줄로 접히고 수치까지 쪼개졌다. */
+.stat-list .stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.stat-label {
+  color: var(--muted);
+  min-width: 0;
+}
+
+/* `3.3km · 12분`이 `3.3km ·` / `12분`으로 쪼개지면 눈이 한 번 더 멈춘다. */
+.stat-value {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 줄 앞의 번호. **지도 핀과 같은 글자·같은 색**이라 목록과 지도가 이어진다.
+   색은 인라인으로 온다 (render/result.ts의 statList). */
+/* 행렬의 번호도 지도의 핀과 1:1이다. 줄이 촘촘해 한 단계 작게 두되 비율은 그대로다. */
+.stat-badge {
+  align-self: center;
+  width: 21px;
+  height: 29px;
+}
+
+.stat-badge > b {
+  font-size: 8.5px;
+}
+
+.stat-badge.is-small > b {
+  font-size: 6.5px;
+  letter-spacing: -0.03em;
+}
+
+/* 같은 출발지를 칸마다 되풀이하지 않는다. 머리글로 한 번만 적고 아래에 도착지를 늘어놓는다. */
+.stat-item.is-heading {
+  padding-bottom: 3px;
+  border-bottom: 0;
+}
+
+.stat-item.is-heading .stat-label {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.stat-item.is-child {
+  padding-left: 28px;
+}
+
+/* ── 정보창 (InfoWindow) ───────────────────────────────────────
+   SDK가 삽입하는 마크업 **안에서** 그려진다. SDK 말풍선은 어느 테마에서나 흰색이므로
+   여기만은 테마 변수를 쓰지 않고 밝은 값으로 고정한다.
+   머리에 제목과 분류 칩, 몸에 `도로명`·`지번` 꼬리표를 단 주소 줄. */
+/*
+ * SDK 말풍선 자체를 손본다.
+ *
+ * `.inavi-popup`에는 **인라인으로 `max-width`가 걸려** 폭이 240px 남짓으로 묶인다.
+ * 문서에 없는 자리라 `!important`로 푼다(사내에서 쓰는 우회 방법). `.inavi-popup-content`는
+ * 자체 여백(10/15px)과 3px 모서리, 그림자를 갖고 있어 **우리 카드 밑으로 모서리가 비친다** —
+ * 여백을 0으로 만들고 모서리를 맞춰 한 장처럼 보이게 한다.
+ */
+.inavi-popup {
+  max-width: none !important;
+}
+
+.inavi-popup-content {
+  overflow: hidden;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 16%);
+}
+
+.iw {
+  width: 228px;
+  background: #fff;
+  color: #374151;
+  font-size: 11px;
+  text-align: left;
+}
+
+.iw-head {
+  padding: 9px 11px 8px;
+  background: #f0f9ff;
+}
+
+.iw-title {
+  display: block;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 12.5px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+/* 분류 칩. 흰 바탕에 얇은 테 — 머리 띠(연한 하늘색) 위에서 떠 보인다. */
+.iw-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  margin-top: 5px;
+  padding: 0 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  color: #374151;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
+.iw-body {
+  padding: 9px 11px;
+}
+
+.iw-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 5px;
+}
+
+/* 꼬리표 폭을 맞춰 두 줄의 값이 같은 자리에서 시작한다. `도로명`·`지번`은 34px로 충분하고,
+   경로 구간의 `교통 상황`처럼 긴 꼬리표가 오면 그만큼만 늘어난다 — 어떤 결과의 정보창이든
+   같은 카드를 쓰므로 폭을 못박지 않는다 (render/result.ts). */
+.iw-label {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0 5px;
+  height: 17px;
+  margin-top: 1px;
+  margin-right: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  color: #374151;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
+.iw-value {
+  line-height: 1.6;
+  word-break: keep-all;
+  text-wrap: pretty;
+}
+
+.iw-tel {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.iw-meta {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 지도 마커. **모양은 하나, 색만 다르다** (render/pin.ts).
+   글자는 물방울 위쪽 흰 원 안에 앉으므로 색을 핀과 맞춘다(인라인). */
+/* 크기는 `render/pin.ts`의 `PIN_WIDTH`·`PIN_HEIGHT`와 같아야 한다 — 그림이 사는 칸
+   (`viewBox` 32×44)과는 다른 값이다. */
+.map-pin {
+  position: relative;
+  width: 26px;
+  height: 36px;
+  /* 흰 테두리만으로 모자란 야간 지도에서 바닥 그림자가 윤곽을 한 번 더 잡아 준다. */
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 35%));
+}
+
+.map-pin img {
+  width: 100%;
+  height: 100%;
+}
+
+.map-pin span {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 두 글자(`출발`·`도착`)는 흰 원 안에 들어가도록 줄인다. */
+.map-pin span.small-text {
+  font-size: 8.5px;
+  letter-spacing: -0.03em;
+}
+
+/* 장소 ↔ 주소 전환 (controls.ts). 둘 다 왔을 때만 만들어진다.
+   건수를 아래 줄에 적어 누르기 전에 저쪽에 얼마나 있는지 보이게 한다. */
+.view-switch {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.view-switch-button {
+  display: flex;
+  align-items: center;
+  padding: 4px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.view-switch-button + .view-switch-button {
+  border-left: 1px solid var(--border);
+}
+
+.view-switch-button.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+
+/* 진출입 지점. 번호 핀 대신 **진입 방향 화살표 하나**를 세운다 (render/entry-points.ts).
+   그림은 핀과 같은 문법이다 — 색을 채우고 흰 테를 두른다 (render/pin.ts). */
+.map-pin.entry-marker {
+  width: 34px;
+  height: 34px;
+}
+
+/* ── ② 결과 좁히기 (controls.ts) ──────────────────────────────
+   사이드바 요약 줄 아래 칸. 고를 것이 있을 때만 생기고, 깔때기 손잡이로 여닫는다.
+   첫 화면은 접힌 채로 시작한다. */
+.filter-host {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+body.filters-collapsed .filter-host,
+.filter-host:empty {
+  display: none;
+}
+
+.map-control {
+  display: flex;
+  /* 내용만큼만 차지한다. 늘리면 셀렉트 하나가 한 줄을 통째로 먹는다. */
+  flex: 0 1 auto;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+
+.map-control-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.filter-host select {
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── ①③ 지도 조작 레일 (map-rail.ts) ─────────────────────────
+   SDK 컨트롤 컨테이너(.inavi-ctrl-top-right)에 끼워 넣어 줌·콤파스 아래에 이어 붙인다.
+   자리·여백·pointer-events는 SDK CSS가 잡는다:
+     .inavi-ctrl-top-right            → pointer-events: none
+     .inavi-ctrl                      → float: right; clear: both; margin: 10px 10px 0 0;
+                                        pointer-events: auto
+     .inavi-ctrl-group                → 흰 배경 · 모서리 4px · 그림자
+     .inavi-ctrl-group button         → 29 × 29, 버튼 사이 1px 구분선
+   그래서 여기서는 **아이콘 모양과 상태 표시만** 더한다. 치수를 다시 적으면 줌 버튼과
+   어긋난다. 컨테이너를 못 찾았을 때(--floating)만 상자를 직접 그린다. */
+.map-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-rail-group {
+  position: relative;
+}
+
+/* 선택자를 한 칸 올려 둔 것은 멋이 아니다. SDK의 `.inavi-ctrl-group button`이
+   `display: block`을 걸어 두어, 한 칸짜리 선택자로는 아이콘이 가운데로 오지 않는다. */
+.map-rail-group .map-rail-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #5a616a;
+  cursor: pointer;
+}
+
+.map-rail-group .map-rail-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 레일 버튼은 **테마 토큰을 쓰지 않는다.** 상자가 SDK 컨트롤이라 어느 테마에서나 흰색이다.
+   `--accent`를 쓰면 어두운 테마에서 흰 면에 흰 글자가 된다. */
+.map-rail-button:hover {
+  background: rgb(63 98 224 / 10%);
+  color: #3f62e0;
+}
+
+.map-rail-button.is-open,
+.map-rail-button.is-active {
+  background: #3f62e0;
+  color: #fff;
+}
+
+.map-rail-group .map-rail-button:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.map-rail-group .map-rail-button:last-child {
+  border-radius: 0 0 4px 4px;
+}
+
+.map-rail-group .map-rail-button:only-child {
+  border-radius: 4px;
+}
+
+.map-rail-group .map-rail-button + .map-rail-button {
+  border-top: 1px solid #ddd;
+}
+
+/* SDK 컨트롤 컨테이너를 찾지 못했을 때의 자리. 상자도 직접 그린다. */
+.map-rail--floating {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  /* 이게 없으면 레일이 차지한 세로 띠가 지도 클릭을 통째로 먹는다. */
+  pointer-events: none;
+}
+
+.map-rail--floating .map-rail-group {
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 10%);
+  pointer-events: auto;
+}
+
+/* 레일에서 왼쪽으로 펼치는 목록 (지도 유형 · 지도에서 하기).
+   오른쪽은 화면 밖이라 반드시 왼쪽으로 연다. 테마 변수를 쓰므로 어두운 지도 위에서도
+   글자가 읽힌다. */
+.rail-popover {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 8px);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 154px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 28%);
+}
+
+/* 목록 항목도 `.inavi-ctrl-group` 안의 button이라 SDK의 29×29·block을 그대로 맞는다.
+   글자가 들어가는 자리이므로 여기서도 선택자를 한 칸 올려 되돌린다. */
+.rail-popover .rail-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  height: auto;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rail-popover .rail-item svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+
+.option-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 1px 2px;
+}
+
+.option-label {
+  /* 칸이 창 왼쪽 끝부터 칸 앞까지를 다 차지하고 꼬리표를 그 가운데에 둔다.
+     왼쪽에 붙였더니 칸과 사이가 벌어져 꼬리표가 동떨어져 보였다 (실기 피드백). */
+  flex: 0 0 36px;
+  margin-right: -4px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+/* `.inavi-ctrl-group` 안이라 SDK가 건 29×29·block을 한 칸 올려 되돌린다. */
+.rail-popover .option-select {
+  flex: 1 1 auto;
+  width: auto;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+/* 쪽 넘기기 — 목록 **아래**에 붙는다. 목록이 길어도 자리가 고정이라 찾기 쉽다. */
+.pager {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.pager-range {
+  min-width: 108px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pager-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.pager-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pager-button:not(:disabled):hover {
+  background: var(--overlay);
+}
+
+/* 끝 쪽에서는 눌리지 않는다. 자리는 지켜 줄이 흔들리지 않게 한다. */
+.pager-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* 목록을 접으면 쪽 넘김도 함께 접힌다 — 넘길 목록이 보이지 않는다. */
+body.list-collapsed .pager {
+  display: none;
+}
+
+/*
+ * 겹쳐 칠하는 막은 **언제나 `--overlay`만 쓴다.**
+ *
+ * 토큰은 이미 테마별로 갈려 있다(:root / body.theme-dark의 `--overlay`). `body.theme-dark …`
+ * 규칙을 따로 걸면 선택자가 한 칸 길어 **밝은 테마에서만 통하던 예외가 어두운 테마에서
+ * 뒤집힌다**(실기 피드백). **덧칠용 색을 여기서 리터럴로 적지 말 것.**
+ *
+ * 이미 고른 항목은 손대지 않는다 — 겹쳐 걸면 흰 글자가 어두운 면에 얹혀 글자가 사라진다.
+ *
+ * **팝오버 안에서는 짙은 쪽(`--overlay-strong`)을 쓴다.** 옅은 쪽(13%)은 팝오버 바탕과
+ * 거의 구분이 안 돼 파란 막대만 보이고 덮은 면이 사라진 것처럼 읽혔다(실기 피드백).
+ * 지도 위가 아니라 **이미 어두운 면 위에 겹치는** 자리라 한 단계 더 필요하다.
+ * 선택자도 팝오버까지 적어 둔다 — 같은 요소를 겨누는 다른 규칙에 밀리지 않는다.
+ */
+.rail-popover .rail-item:not(.is-active):hover {
+  background: var(--overlay-strong);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.rail-item.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.rail-item.is-active svg {
+  color: var(--accent-fg);
+}
+
+/* ── 결과를 대화로 보내기 ───────────────────────────────────── */
+.result-item {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.send-button {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.send-button:hover:not([disabled]) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.send-button[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/*
+ * 표시가 꺼진 결과(showMap=false)는 지도를 그리지 않고 한 줄만 남긴다.
+ * .layout의 100vh를 함께 풀어야 호스트의 자동 크기 조정이 실제로 줄어든다.
+ */
+html.collapsed,
+body.collapsed {
+  height: auto;
+}
+
+body.collapsed .layout {
+  height: auto;
+  min-height: 0;
+}
+
+body.collapsed #map-host,
+body.collapsed #panel {
+  display: none;
+}
+
+#collapsed-note {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}

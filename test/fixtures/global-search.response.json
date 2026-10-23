@@ -1,0 +1,322 @@
+{
+  "search": {
+    "result": true,
+    "lang": "en",
+    "totalcount": 199,
+    "count": 5,
+    "poitotalcount": 199,
+    "poicount": 5,
+    "admtotalcount": 0,
+    "admcount": 0,
+    "poi": [
+      {
+        "poiid": 16480326,
+        "depth": "0",
+        "dpx": "127.111412",
+        "dpy": "37.39476",
+        "rpx": "127.112525",
+        "rpy": "37.394727",
+        "routepoints": [
+          {
+            "rpx": "127.112525",
+            "rpy": "37.394727"
+          }
+        ],
+        "name1": "Pangyo Station(KTX)",
+        "name1_ko": "판교역(KTX)",
+        "name2": "KTX판교역",
+        "name2_ko": "KTX판교역",
+        "name3": "",
+        "name3_ko": "",
+        "name4": "",
+        "name4_ko": "",
+        "admcode": "4113511000",
+        "address": "Gyeonggi-do Seongnam-si Bundang-gu Baekhyeon-dong",
+        "address_ko": "경기도 성남시 분당구 백현동",
+        "jibun": "532-1",
+        "jibun_ko": "532-1",
+        "roadname": "Gyeonggi-do Seongnam-si Bundang-gu Bundangnaegok-ro",
+        "roadname_ko": "경기도 성남시 분당구 분당내곡로",
+        "roadjibun": "121",
+        "roadjibun_ko": "121",
+        "detailaddress": "",
+        "detailaddress_ko": "",
+        "catecode": "160101",
+        "catename": "Transportation",
+        "catename_ko": "교통",
+        "dp_catecode": "000",
+        "distance": 0,
+        "tel": "",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": true,
+        "updateTS": "2025-04-16",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": "경기_,분당구_1"
+      },
+      {
+        "poiid": 9296357,
+        "depth": "0",
+        "dpx": "127.11055",
+        "dpy": "37.39476",
+        "rpx": "127.112525",
+        "rpy": "37.394727",
+        "routepoints": [
+          {
+            "rpx": "127.112525",
+            "rpy": "37.394727"
+          },
+          {
+            "rpx": "127.110237",
+            "rpy": "37.396201"
+          },
+          {
+            "rpx": "127.112237",
+            "rpy": "37.393802"
+          },
+          {
+            "rpx": "127.112787",
+            "rpy": "37.394793"
+          }
+        ],
+        "name1": "Pangyo Station (Gyeonggang Line)",
+        "name1_ko": "판교역(경강선)",
+        "name2": "",
+        "name2_ko": "",
+        "name3": "",
+        "name3_ko": "",
+        "name4": "",
+        "name4_ko": "",
+        "admcode": "4113511000",
+        "address": "Gyeonggi-do Seongnam-si Bundang-gu Baekhyeon-dong",
+        "address_ko": "경기도 성남시 분당구 백현동",
+        "jibun": "532-1",
+        "jibun_ko": "532-1",
+        "roadname": "Gyeonggi-do Seongnam-si Bundang-gu Bundangnaegok-ro",
+        "roadname_ko": "경기도 성남시 분당구 분당내곡로",
+        "roadjibun": "121",
+        "roadjibun_ko": "121",
+        "detailaddress": "",
+        "detailaddress_ko": "",
+        "catecode": "174400",
+        "catename": "Subway",
+        "catename_ko": "지하철",
+        "dp_catecode": "370",
+        "distance": 0,
+        "tel": "",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": true,
+        "updateTS": "2024-12-10",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 4521974,
+        "depth": "0",
+        "dpx": "127.111212",
+        "dpy": "37.395026",
+        "rpx": "127.112525",
+        "rpy": "37.394727",
+        "routepoints": [
+          {
+            "rpx": "127.112525",
+            "rpy": "37.394727"
+          },
+          {
+            "rpx": "127.110237",
+            "rpy": "37.396201"
+          },
+          {
+            "rpx": "127.112237",
+            "rpy": "37.393802"
+          },
+          {
+            "rpx": "127.112787",
+            "rpy": "37.394793"
+          }
+        ],
+        "name1": "Pangyo Station (Shinbundang Line)",
+        "name1_ko": "판교역(신분당선)",
+        "name2": "판교(판교테크노밸리)역(신분당선)",
+        "name2_ko": "판교(판교테크노밸리)역(신분당선)",
+        "name3": "판교테크노밸리역(신분당선)",
+        "name3_ko": "판교테크노밸리역(신분당선)",
+        "name4": "",
+        "name4_ko": "",
+        "admcode": "4113511000",
+        "address": "Gyeonggi-do Seongnam-si Bundang-gu Baekhyeon-dong",
+        "address_ko": "경기도 성남시 분당구 백현동",
+        "jibun": "532-1",
+        "jibun_ko": "532-1",
+        "roadname": "Gyeonggi-do Seongnam-si Bundang-gu Bundangnaegok-ro",
+        "roadname_ko": "경기도 성남시 분당구 분당내곡로",
+        "roadjibun": "121",
+        "roadjibun_ko": "121",
+        "detailaddress": "",
+        "detailaddress_ko": "",
+        "catecode": "172900",
+        "catename": "Subway",
+        "catename_ko": "지하철",
+        "dp_catecode": "370",
+        "distance": 0,
+        "tel": "031-8018-7750",
+        "hasoildata": false,
+        "hasdetailinfo": true,
+        "hassubpoi": false,
+        "islandmark": true,
+        "updateTS": "2024-12-10",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": "_,분당구_8"
+      },
+      {
+        "poiid": 437136,
+        "depth": "0",
+        "dpx": "126.679523",
+        "dpy": "36.15532",
+        "rpx": "126.67886",
+        "rpy": "36.155512",
+        "routepoints": [
+          {
+            "rpx": "126.67886",
+            "rpy": "36.155512"
+          }
+        ],
+        "entrypoint": {
+          "px": "126.679423",
+          "py": "36.155395"
+        },
+        "name1": "Pangyo Station",
+        "name1_ko": "판교역",
+        "name2": "",
+        "name2_ko": "",
+        "name3": "",
+        "name3_ko": "",
+        "name4": "",
+        "name4_ko": "",
+        "admcode": "4477038030",
+        "address": "Chungcheongnam-do Seocheon-gun Pangyo-myeon Jeosan-ri",
+        "address_ko": "충청남도 서천군 판교면 저산리",
+        "jibun": "308-25",
+        "jibun_ko": "308-25",
+        "roadname": "Chungcheongnam-do Seocheon-gun Pangyo-myeon Jeosan-gil",
+        "roadname_ko": "충청남도 서천군 판교면 저산길",
+        "roadjibun": "8",
+        "roadjibun_ko": "8",
+        "detailaddress": "",
+        "detailaddress_ko": "",
+        "catecode": "160102",
+        "catename": "Transportation",
+        "catename_ko": "교통",
+        "dp_catecode": "000",
+        "distance": 0,
+        "tel": "041-951-7788",
+        "hasoildata": false,
+        "hasdetailinfo": true,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2020-04-13",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": ""
+      },
+      {
+        "poiid": 2811450,
+        "depth": "0",
+        "dpx": "126.688147",
+        "dpy": "36.153579",
+        "rpx": "126.688147",
+        "rpy": "36.153579",
+        "routepoints": [
+          {
+            "rpx": "126.688147",
+            "rpy": "36.153579"
+          }
+        ],
+        "entrypoint": {
+          "px": "126.688247",
+          "py": "36.153604"
+        },
+        "name1": "Pangyo Station (closed)",
+        "name1_ko": "판교역(폐역)",
+        "name2": "",
+        "name2_ko": "",
+        "name3": "",
+        "name3_ko": "",
+        "name4": "",
+        "name4_ko": "",
+        "admcode": "4477038029",
+        "address": "Chungcheongnam-do Seocheon-gun Pangyo-myeon Hyeonam-ri",
+        "address_ko": "충청남도 서천군 판교면 현암리",
+        "jibun": "145-2",
+        "jibun_ko": "145-2",
+        "roadname": "Chungcheongnam-do Seocheon-gun Pangyo-myeon Jongpan-ro",
+        "roadname_ko": "충청남도 서천군 판교면 종판로",
+        "roadjibun": "882-8",
+        "roadjibun_ko": "882-8",
+        "detailaddress": "",
+        "detailaddress_ko": "",
+        "catecode": "160103",
+        "catename": "Transportation",
+        "catename_ko": "교통",
+        "dp_catecode": "000",
+        "distance": 0,
+        "tel": "",
+        "hasoildata": false,
+        "hasdetailinfo": false,
+        "hassubpoi": false,
+        "islandmark": false,
+        "updateTS": "2020-12-03",
+        "subpoi": {
+          "count": 0,
+          "poi": []
+        },
+        "popularity": false,
+        "pop_tv": false,
+        "pop_sns": false,
+        "pop_hot": false,
+        "pop_hit": false,
+        "pop_top": "_,서천군_8"
+      }
+    ],
+    "adm": []
+  },
+  "header": {
+    "isSuccessful": true,
+    "resultCode": 0,
+    "resultMessage": "Success"
+  }
+}
