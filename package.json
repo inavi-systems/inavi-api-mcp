@@ -1,5 +1,6 @@
 {
   "name": "@inavi-maps/api-mcp-server",
+  "mcpName": "io.github.inavi-systems/inavi-api-mcp",
   "version": "0.0.3",
   "description": "INAVI Maps API를 직접 호출하고 결과를 MCP Apps 동적 지도로 렌더링하는 MCP 서버",
   "keywords": [
@@ -65,6 +66,7 @@
     "inspect": "npx -y @modelcontextprotocol/inspector@latest node dist/server.js",
     "prepublishOnly": "npm run lint && npm run type-check && npm test && npm run build",
     "check:pack": "node scripts/check-pack.mjs",
+    "version": "node scripts/sync-version.mjs && git add server.json",
     "release": "echo 'Use GitHub Actions: Actions > Release > Run workflow' && exit 1"
   },
   "dependencies": {

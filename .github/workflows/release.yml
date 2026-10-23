@@ -22,7 +22,7 @@ jobs:
 
     permissions:
       contents: write
-      id-token: write # npm Trusted Publishing(OIDC)으로 배포한다 — 토큰 시크릿이 없다
+      id-token: write # npm Trusted Publishing과 MCP Registry 로그인 둘 다 OIDC다 — 토큰 시크릿이 없다
 
     steps:
       - name: Checkout code
@@ -59,7 +59,8 @@ jobs:
       # Skipped for "none", which publishes the version already committed on main.
       # That is the recovery path: a step after the version push can fail, and
       # re-running a bump would strand the half-released version behind a new one.
-      # npm version은 커밋과 태그 vX.Y.Z를 함께 만든다(v0.0.1을 손으로 단 방식과 같다).
+      # npm version은 커밋과 태그 vX.Y.Z를 함께 만든다. "version" 훅(scripts/sync-version.mjs)이
+      # server.json의 버전을 맞춰 같은 커밋에 넣는다.
       - name: Bump version
         if: inputs.version-type != 'none'
         run: |
@@ -114,6 +115,31 @@ jobs:
           done
           echo "::error::${{ steps.version.outputs.version }} did not become latest on npm within 10 minutes"
           exit 1
+
+      # 공식 MCP Registry에 등록한다. Registry는 npm 패키지의 mcpName이 server.json의 name과
+      # 같은지 보므로 npm 반영을 기다린 뒤에 돈다. 로그인은 GitHub OIDC라 io.github.inavi-systems/*
+      # 이름만 쓸 수 있다. "none" 재실행에서 이미 등록된 버전이면 건너뛴다.
+      - name: Check whether the version is already on the MCP Registry
+        id: registry-state
+        run: |
+          NAME=$(node -p "require('./server.json').name")
+          ENCODED=$(node -p "encodeURIComponent(process.argv[1])" "$NAME")
+          if curl -sf "https://registry.modelcontextprotocol.io/v0/servers/$ENCODED/versions/${{ steps.version.outputs.version }}" > /dev/null; then
+            echo "published=true" >> $GITHUB_OUTPUT
+          else
+            echo "published=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install mcp-publisher
+        if: steps.registry-state.outputs.published != 'true'
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Publish to MCP Registry
+        if: steps.registry-state.outputs.published != 'true'
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
 
       - name: Summary
         run: |

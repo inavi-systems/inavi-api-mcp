@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.inavi-systems/inavi-api-mcp",
+  "title": "INAVI Maps API",
+  "description": "INAVI Maps API for AI (South Korea): place search, geocoding, routes on an interactive map",
+  "repository": {
+    "url": "https://github.com/inavi-systems/inavi-api-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://mapsapi.inavisys.com/",
+  "version": "0.0.3",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@inavi-maps/api-mcp-server",
+      "version": "0.0.3",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "INAVI_APPKEY",
+          "description": "INAVI Maps API Key",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
